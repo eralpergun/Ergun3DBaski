@@ -360,11 +360,18 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Sipariş İçeriği</span>
                 {searchedOrder.items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600 truncate max-w-[180px]">
-                      {item.type === 'catalog' ? item.product?.name : item.customPrint?.fileName}
-                    </span>
-                    <span className="text-slate-400 font-medium">x{item.quantity}</span>
+                  <div key={idx} className="space-y-0.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-600 truncate max-w-[180px] font-medium">
+                        {item.type === 'catalog' ? item.product?.name : item.customPrint?.fileName}
+                      </span>
+                      <span className="text-slate-400 font-medium">x{item.quantity}</span>
+                    </div>
+                    {item.type === 'custom' && item.customPrint?.estimatedDuration && (
+                      <div className="text-[10px] text-indigo-600 font-bold flex items-center gap-1">
+                        ⏱️ Baskı Süresi: {item.customPrint.estimatedDuration} (Bambulab A1)
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -662,11 +669,18 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                         {/* Order Items */}
                         <div className="space-y-2 mb-3">
                           {order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-xs">
-                              <span className="text-slate-600 truncate max-w-[280px]">
-                                {item.type === 'catalog' ? item.product?.name : item.customPrint?.fileName}
-                              </span>
-                              <span className="text-slate-400 font-semibold">x{item.quantity}</span>
+                            <div key={idx} className="space-y-0.5">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600 truncate max-w-[280px] font-medium">
+                                  {item.type === 'catalog' ? item.product?.name : item.customPrint?.fileName}
+                                </span>
+                                <span className="text-slate-400 font-semibold">x{item.quantity}</span>
+                              </div>
+                              {item.type === 'custom' && item.customPrint?.estimatedDuration && (
+                                <div className="text-[10px] text-indigo-600 font-bold flex items-center gap-1">
+                                  ⏱️ Baskı Süresi: {item.customPrint.estimatedDuration} (Bambulab A1)
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

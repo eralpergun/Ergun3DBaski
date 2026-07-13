@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Link2, Calculator, Plus, Check } from 'lucide-react';
+import { Upload, Link2, Calculator, Plus, Check, Clock, Gauge, Zap } from 'lucide-react';
 import { OrderItem } from '../types';
 
 interface CustomPrintFormProps {
@@ -19,6 +19,31 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
 
   const currentPricePerGram = printType === 'multi' ? pricePerGramMultiColor : pricePerGram;
   const calculatedPrice = estimatedWeight * currentPricePerGram;
+
+  // Bambu Lab A1 Combo print estimation logic based on grammage
+  const calculatePrintTime = (weight: number, type: 'single' | 'multi') => {
+    // Bambu Lab A1 has a preparation routine (heating, bed leveling, calibration, flow calibration) taking ~8 minutes
+    const setupMinutes = 8;
+    
+    // Average speeds for Bambu Lab A1:
+    // Single Color: Prints approx. 18-20g PLA per hour (~3 minutes per gram)
+    // Multi Color: The AMS Lite spends a lot of time flushing color swaps, purging, wiping, and printing prime towers.
+    // Each filament change adds about 1.5 - 2 minutes. On average, multi-color prints take ~11 minutes per gram.
+    const minutesPerGram = type === 'multi' ? 11 : 3;
+    
+    const totalMinutes = setupMinutes + (weight * minutesPerGram);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.round(totalMinutes % 60);
+    
+    return {
+      hours,
+      minutes,
+      totalMinutes,
+      formatted: hours > 0 ? `${hours} saat ${minutes} dk` : `${minutes} dk`
+    };
+  };
+
+  const printTime = calculatePrintTime(estimatedWeight, printType);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -80,6 +105,7 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
         estimatedWeight: estimatedWeight,
         pricePerGram: currentPricePerGram,
         printType: printType,
+        estimatedDuration: printTime.formatted,
       },
     };
 
@@ -261,6 +287,55 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
                 </span>
               </button>
             </div>
+          </div>
+
+          {/* Bambu Lab A1 Combo Print Time Estimation */}
+          <div className="bg-slate-950/40 rounded-2xl p-4 border border-slate-800/60 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-800/40 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                  <Gauge className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-300">Yüksek Hızlı 3D Yazıcı Modeli</span>
+              </div>
+              <span className="text-[10px] font-extrabold bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                Bambu Lab A1 Combo
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-slate-850 rounded-xl">
+                  <Clock className="h-5 w-5 text-indigo-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Tahmini Baskı Süresi</span>
+                  <span className="text-sm font-extrabold text-white flex items-center gap-1.5">
+                    {printTime.formatted}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-slate-850 rounded-xl">
+                  <Zap className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider">Teknik Özellik</span>
+                  <span className="text-[11px] text-slate-300 font-semibold block leading-tight">
+                    {printType === 'multi' 
+                      ? '🌈 AMS Lite ile renk geçişi dahil' 
+                      : '⚡ 500 mm/s Maksimum Hız'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {printType === 'multi' && (
+              <p className="text-[10px] text-amber-400/90 leading-relaxed bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
+                ⚠️ <strong>Çok Renkli Baskı:</strong> Filament renk değişimlerindeki temizleme (purge) ve geçiş süreleri nedeniyle üretim süresi tek renge kıyasla daha uzundur.
+              </p>
+            )}
           </div>
 
           {/* Pricing calculation display */}

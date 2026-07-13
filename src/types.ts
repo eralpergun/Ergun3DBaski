@@ -18,6 +18,7 @@ export interface OrderItem {
     estimatedWeight: number; // in grams
     pricePerGram: number;
     printType?: 'single' | 'multi';
+    estimatedDuration?: string;
   };
   quantity: number;
   type: 'catalog' | 'custom';

@@ -632,8 +632,15 @@ export default function AdminPanel() {
                                   {item.type === 'catalog' ? item.product?.name : item.customPrint?.fileName}
                                 </h5>
                                 <p className="text-[10px] text-slate-400 uppercase font-semibold mt-0.5">
-                                  {item.type === 'catalog' ? item.product?.category : 'Özel Sipariş'}
+                                  {item.type === 'catalog' ? item.product?.category : `Özel Sipariş (${item.customPrint?.estimatedWeight}g - ${item.customPrint?.printType === 'multi' ? '🌈 Çok Renkli' : 'Tek Renk'})`}
                                 </p>
+                                {item.type === 'custom' && item.customPrint?.estimatedDuration && (
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100">
+                                      ⏱️ {item.customPrint.estimatedDuration} (Bambulab A1)
+                                    </span>
+                                  </div>
+                                )}
                                 {item.type === 'custom' && item.customPrint?.makerworldLink && (
                                   <a 
                                     href={item.customPrint.makerworldLink} 
@@ -1165,11 +1172,13 @@ export default function AdminPanel() {
                               {chat.customerName || 'Ziyaretçi'}
                             </span>
                             <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                              chat.liveMode
+                              chat.status === 'closed'
+                                ? isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                : chat.liveMode
                                 ? isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
                                 : isSelected ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-500'
                             }`}>
-                              {chat.liveMode ? 'Canlı' : 'Bot'}
+                              {chat.status === 'closed' ? 'Kapalı' : chat.liveMode ? 'Canlı' : 'Bot'}
                             </span>
                           </div>
                           <p className={`text-xs truncate w-full ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
@@ -1198,20 +1207,48 @@ export default function AdminPanel() {
                           {/* Chat Header */}
                           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                             <div>
-                              <h4 className="font-bold text-slate-800 text-sm">{selectedChat?.customerName || 'Ziyaretçi'}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-slate-800 text-sm">{selectedChat?.customerName || 'Ziyaretçi'}</h4>
+                                {selectedChat?.status === 'closed' && (
+                                  <span className="text-[9px] bg-slate-100 text-slate-500 font-extrabold px-1.5 py-0.5 rounded-md border border-slate-200">
+                                    KAPATILDI
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-slate-400">ID: {selectedChatId}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                              {/* Close chat button */}
+                              {selectedChat?.status !== 'closed' && (
+                                <button
+                                  onClick={async () => {
+                                    if (confirm('Bu sohbet oturumunu sonlandırmak/kapatmak istediğinize emin misiniz?')) {
+                                      await update(ref(database, `support_chats/${selectedChatId}`), {
+                                        status: 'closed',
+                                        updatedAt: Date.now()
+                                      });
+                                      await push(ref(database, `support_chats/${selectedChatId}/messages`), {
+                                        id: 'sys_closed_' + Date.now(),
+                                        sender: 'admin',
+                                        text: 'Sohbet admin tarafından sonlandırıldı. Sorularınız için yeni bir sohbet başlatabilirsiniz. 🔒',
+                                        timestamp: Date.now()
+                                      });
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 hover:text-amber-800 rounded-xl border border-amber-150 transition-all flex items-center gap-1 font-bold text-xs cursor-pointer shadow-sm animate-pulse"
+                                  title="Sohbeti Kapat"
+                                >
+                                  🔒 Sohbeti Kapat
+                                </button>
+                              )}
                               <button
                                 onClick={async () => {
-                                  if (confirm('Bu sohbeti kapatmak istediğinize emin misiniz?')) {
+                                  if (confirm('Bu sohbeti tamamen SİLMEK istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
                                     await remove(ref(database, `support_chats/${selectedChatId}`));
                                     setSelectedChatId(null);
                                   }
                                 }}
-                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                                title="Sohbeti Sil/Kapat"
+                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-200"
+                                title="Sohbeti Tamamen Sil"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1252,28 +1289,34 @@ export default function AdminPanel() {
                             )}
                           </div>
 
-                          {/* Chat Input */}
-                          <div className="flex gap-2 pt-3 border-t border-slate-100">
-                            <input
-                              type="text"
-                              placeholder="Cevabınızı buraya yazın..."
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              onKeyDown={async (e) => {
-                                if (e.key === 'Enter') {
-                                  await handleSendAdminReply();
-                                }
-                              }}
-                              className="flex-1 px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-slate-300 rounded-xl text-xs outline-none text-slate-800 transition-all"
-                            />
-                            <button
-                              onClick={handleSendAdminReply}
-                              disabled={!replyText.trim()}
-                              className="p-3 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-700 disabled:hover:bg-indigo-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer"
-                            >
-                              <Send className="h-4 w-4" />
-                            </button>
-                          </div>
+                          {/* Chat Input or Closed Message */}
+                          {selectedChat?.status === 'closed' ? (
+                            <div className="p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl text-center text-xs text-slate-500 font-bold flex items-center justify-center gap-2">
+                              🔒 Bu destek sohbeti sonlandırılmıştır. Kullanıcı yeni bir sohbet başlatabilir.
+                            </div>
+                          ) : (
+                            <div className="flex gap-2 pt-3 border-t border-slate-100">
+                              <input
+                                type="text"
+                                placeholder="Cevabınızı buraya yazın..."
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter') {
+                                    await handleSendAdminReply();
+                                  }
+                                }}
+                                className="flex-1 px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-slate-300 rounded-xl text-xs outline-none text-slate-800 transition-all"
+                              />
+                              <button
+                                onClick={handleSendAdminReply}
+                                disabled={!replyText.trim()}
+                                className="p-3 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-700 disabled:hover:bg-indigo-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer"
+                              >
+                                <Send className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
                         </>
                       );
                     })()

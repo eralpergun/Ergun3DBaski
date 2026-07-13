@@ -179,6 +179,13 @@ export default function Cart({
                     {item.type === 'catalog' ? item.product?.category : `Özel Baskı (${item.customPrint?.estimatedWeight}g)`}
                   </p>
                   
+                  {item.type === 'custom' && item.customPrint?.estimatedDuration && (
+                    <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-bold mt-0.5">
+                      <span>⏱️ Baskı Süresi:</span>
+                      <span>{item.customPrint.estimatedDuration}</span>
+                    </div>
+                  )}
+                  
                   {item.type === 'custom' && item.customPrint?.makerworldLink && (
                     <a href={item.customPrint.makerworldLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-600 underline truncate block mt-0.5 max-w-[180px]">
                       Tasarım Linki

@@ -19,7 +19,19 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [chatStatus, setChatStatus] = useState<'active' | 'closed'>('active');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const startNewChat = () => {
+    if (!chatId) return;
+    const newId = 'chat_' + Math.random().toString(36).substring(2, 11);
+    localStorage.setItem('3d_baski_chat_session_id', newId);
+    setChatId(newId);
+    setLiveMode(false);
+    setChatStatus('active');
+    setMessages([]);
+    localStorage.removeItem(`bot_history_${chatId}`);
+  };
 
   // Initialize Chat Session ID
   useEffect(() => {
@@ -74,6 +86,11 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
       if (snapshot.exists()) {
         const chatData = snapshot.val() as SupportChat;
         setLiveMode(chatData.liveMode);
+        if (chatData.status) {
+          setChatStatus(chatData.status);
+        } else {
+          setChatStatus('active');
+        }
         
         if (chatData.messages) {
           const list = Object.entries(chatData.messages).map(([id, msg]) => ({
@@ -118,8 +135,11 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
       const chatSnap = await get(ref(database, `support_chats/${chatId}`));
       if (chatSnap.exists()) {
         const data = chatSnap.val() as SupportChat;
-        if (data.liveMode && data.status === 'active') {
+        if (data.liveMode) {
           setLiveMode(true);
+          if (data.status) {
+            setChatStatus(data.status);
+          }
         }
       }
     };
@@ -291,17 +311,19 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-850 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${liveMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
-                  {liveMode ? <Headphones className="h-5 w-5 animate-pulse" /> : <Sparkles className="h-5 w-5" />}
+                <div className={`p-2.5 rounded-xl ${chatStatus === 'closed' && liveMode ? 'bg-rose-500/10 text-rose-400' : liveMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                  {chatStatus === 'closed' && liveMode ? <X className="h-5 w-5 animate-none" /> : liveMode ? <Headphones className="h-5 w-5 animate-pulse" /> : <Sparkles className="h-5 w-5" />}
                 </div>
                 <div>
                   <h4 className="font-bold text-sm tracking-wide">
-                    {liveMode ? 'Canlı Destek (Admin)' : '3D Baskı Destek Botu'}
+                    {chatStatus === 'closed' && liveMode ? 'Sohbet Sonlandırıldı' : liveMode ? 'Canlı Destek (Admin)' : '3D Baskı Destek Botu'}
                   </h4>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    {chatStatus !== 'closed' && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    )}
                     <span className="text-[10px] text-slate-300 font-medium">
-                      {liveMode ? 'Admine Canlı Bağlı' : 'Yapay Zeka Asistanı'}
+                      {chatStatus === 'closed' && liveMode ? 'Sohbet Kapandı 🔒' : liveMode ? 'Admine Canlı Bağlı' : 'Yapay Zeka Asistanı'}
                     </span>
                   </div>
                 </div>
@@ -444,27 +466,42 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
               )}
             </div>
 
-            {/* Input Footer */}
+             {/* Input Footer */}
             {!needName && (
-              <div className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder={liveMode ? "Canlı desteğe yazın..." : "Sorunuzu buraya yazın..."}
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSend();
-                  }}
-                  className="flex-1 px-3.5 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-slate-300 focus:ring-2 focus:ring-indigo-100 rounded-xl text-xs outline-none text-slate-800 transition-all"
-                />
-                <button
-                  onClick={() => handleSend()}
-                  disabled={!inputText.trim()}
-                  className="p-2.5 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-700 disabled:hover:bg-indigo-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              chatStatus === 'closed' && liveMode ? (
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col gap-2 items-center justify-center text-center">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                    <span>🔒 Sohbet admin tarafından kapatıldı.</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">Yeni bir soru veya baskı talebi için yeni bir sohbet başlatabilirsiniz.</p>
+                  <button
+                    onClick={startNewChat}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1 mt-1"
+                  >
+                    Yeni Sohbet Başlat 💬
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder={liveMode ? "Canlı desteğe yazın..." : "Sorunuzu buraya yazın..."}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSend();
+                    }}
+                    className="flex-1 px-3.5 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-slate-300 focus:ring-2 focus:ring-indigo-100 rounded-xl text-xs outline-none text-slate-800 transition-all"
+                  />
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={!inputText.trim()}
+                    className="p-2.5 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-700 disabled:hover:bg-indigo-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )
             )}
           </motion.div>
         )}
