@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Instagram } from 'lucide-react';
+import { MapPin, Instagram, MessageSquare } from 'lucide-react';
 
 export default function ContactDetails() {
   return (
@@ -10,23 +10,15 @@ export default function ContactDetails() {
 
       <div className="space-y-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-slate-100 rounded-2xl text-slate-800 shrink-0">
-            <Phone className="h-5 w-5" />
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+            <MessageSquare className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Telefon / WhatsApp</h4>
-            <p className="text-slate-800 font-medium mt-0.5">+90 530 000 0000</p>
-            <p className="text-xs text-slate-400">Hafta içi & hafta sonu: 09:00 - 21:00</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-slate-100 rounded-2xl text-slate-800 shrink-0">
-            <Mail className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">E-posta</h4>
-            <p className="text-slate-800 font-medium mt-0.5">ergun3dbaski@gmail.com</p>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">7/24 Uygulama İçi Destek</h4>
+            <p className="text-slate-800 font-medium mt-0.5">Akıllı Destek Botu & Canlı Destek</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Sağ alt köşede bulunan sohbet balonuna tıklayarak anında destek botumuza sorularınızı sorabilir veya doğrudan Müşteri Temsilcimize (admine) bağlanabilirsiniz.
+            </p>
           </div>
         </div>
 
@@ -61,7 +53,7 @@ export default function ContactDetails() {
 
       <div className="mt-8 pt-6 border-t border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
         <p className="text-xs text-slate-500 leading-relaxed text-center">
-          💡 <span className="font-semibold text-slate-700">Tasarım Destek:</span> Model seçiminde kararsız kaldıysanız veya özel boyutlarda üretim istiyorsanız bizimle iletişime geçebilirsiniz.
+          💡 <span className="font-semibold text-slate-700">Tasarım Destek:</span> Model seçimi veya özel boyutlu üretimler için sağ alttaki destek botumuz üzerinden bizimle anında iletişime geçebilirsiniz.
         </p>
       </div>
     </div>

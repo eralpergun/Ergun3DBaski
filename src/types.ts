@@ -57,3 +57,21 @@ export interface UserProfile {
 export interface CustomSettings {
   pricePerGram: number;
 }
+
+export interface SupportMessage {
+  id: string;
+  sender: 'bot' | 'user' | 'admin';
+  text: string;
+  timestamp: number;
+}
+
+export interface SupportChat {
+  id: string;
+  customerName: string;
+  lastMessage: string;
+  updatedAt: number;
+  liveMode: boolean; // false = handled by bot, true = connected to admin
+  status: 'active' | 'closed';
+  messages?: Record<string, SupportMessage>;
+}
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2 } from 'lucide-react';
 import { database } from '../lib/firebase';
-import { ref, get, child, onValue, query, orderByChild, equalTo, remove } from 'firebase/database';
+import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
 import { hashPasscodeSync } from '../utils/hash';
 import { Order, OrderStatus } from '../types';
 
@@ -25,6 +25,15 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
   const [fullName, setFullName] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+
+  // Change password state
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPasscode, setCurrentPasscode] = useState('');
+  const [newPasscode, setNewPasscode] = useState('');
+  const [newPasscodeConfirm, setNewPasscodeConfirm] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   // User orders state
   const [userOrders, setUserOrders] = useState<Order[]>([]);
@@ -183,6 +192,92 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
     } catch (err) {
       console.error(err);
       alert('Hesap silinirken bir hata oluştu.');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    if (!currentPasscode || !newPasscode || !newPasscodeConfirm) {
+      setChangePasswordError('Lütfen tüm alanları doldurun.');
+      setChangePasswordSuccess('');
+      return;
+    }
+
+    if (newPasscode !== newPasscodeConfirm) {
+      setChangePasswordError('Yeni şifreler eşleşmiyor.');
+      setChangePasswordSuccess('');
+      return;
+    }
+
+    if (newPasscode.length < 4) {
+      setChangePasswordError('Yeni şifre en az 4 karakter olmalıdır.');
+      setChangePasswordSuccess('');
+      return;
+    }
+
+    setChangePasswordLoading(true);
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+
+    try {
+      const userRef = ref(database, `users/${currentUser.id}`);
+      const userSnapshot = await get(userRef);
+
+      if (!userSnapshot.exists()) {
+        setChangePasswordError('Kullanıcı hesabı bulunamadı.');
+        return;
+      }
+
+      const userData = userSnapshot.val();
+      const currentHash = hashPasscodeSync(currentPasscode);
+
+      if (userData.passcodeHash !== currentHash) {
+        setChangePasswordError('Mevcut şifreniz yanlış.');
+        return;
+      }
+
+      const newHash = hashPasscodeSync(newPasscode);
+      await update(userRef, { passcodeHash: newHash });
+
+      setChangePasswordSuccess('Şifreniz başarıyla güncellendi! ✓');
+      setCurrentPasscode('');
+      setNewPasscode('');
+      setNewPasscodeConfirm('');
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setChangePasswordSuccess('');
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setChangePasswordError('Şifre güncellenirken bir hata oluştu.');
+    } finally {
+      setChangePasswordLoading(false);
+    }
+  };
+
+  // Cancel/Delete customer order
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm('Bu siparişi iptal etmek ve silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+      return;
+    }
+
+    try {
+      const ordersRef = ref(database, 'orders');
+      onValue(ordersRef, async (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const dbKey = Object.keys(data).find(key => data[key].id === orderId);
+          if (dbKey) {
+            await remove(ref(database, `orders/${dbKey}`));
+            alert('Siparişiniz başarıyla iptal edildi ve silindi.');
+          }
+        }
+      }, { onlyOnce: true });
+    } catch (err) {
+      console.error(err);
+      alert('Sipariş iptal edilirken bir hata oluştu.');
     }
   };
 
@@ -406,6 +501,21 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    onClick={() => {
+                      setShowChangePassword(!showChangePassword);
+                      setChangePasswordError('');
+                      setChangePasswordSuccess('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-xl bg-white shadow-sm transition-all flex items-center gap-1 cursor-pointer border ${
+                      showChangePassword
+                        ? 'text-indigo-600 border-indigo-200 bg-indigo-50/10'
+                        : 'text-slate-600 hover:text-slate-800 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Şifre Değiştir
+                  </button>
+                  <button
                     onClick={onLogout}
                     className="px-3.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 rounded-xl bg-white shadow-sm transition-all cursor-pointer"
                   >
@@ -421,6 +531,85 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                   </button>
                 </div>
               </div>
+
+              {showChangePassword && (
+                <form onSubmit={handleChangePassword} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-200/60">
+                    <KeyRound className="h-4 w-4 text-indigo-600" />
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Şifre Değiştirme Formu</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Mevcut Şifre</label>
+                      <input
+                        type="password"
+                        required
+                        value={currentPasscode}
+                        onChange={(e) => setCurrentPasscode(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-550/20 focus:border-indigo-500 outline-none text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Yeni Şifre</label>
+                      <input
+                        type="password"
+                        required
+                        value={newPasscode}
+                        onChange={(e) => setNewPasscode(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-550/20 focus:border-indigo-500 outline-none text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Yeni Şifre Tekrar</label>
+                      <input
+                        type="password"
+                        required
+                        value={newPasscodeConfirm}
+                        onChange={(e) => setNewPasscodeConfirm(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-550/20 focus:border-indigo-500 outline-none text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  {changePasswordError && (
+                    <p className="text-xs text-rose-500 bg-rose-50 px-3 py-2 rounded-xl border border-rose-100 flex items-center gap-1.5 font-medium">
+                      <ShieldAlert className="h-4 w-4 shrink-0" />
+                      {changePasswordError}
+                    </p>
+                  )}
+
+                  {changePasswordSuccess && (
+                    <p className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100 font-semibold">
+                      {changePasswordSuccess}
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        setChangePasswordError('');
+                        setChangePasswordSuccess('');
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={changePasswordLoading}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      {changePasswordLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Güncelle'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {/* Order List */}
               <div className="space-y-4">
@@ -456,6 +645,15 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                             <span className="text-[10px] text-slate-400 font-medium">
                               {new Date(order.createdAt).toLocaleDateString('tr-TR')}
                             </span>
+                            {(order.orderStatus === 'Sipariş Alındı' || order.orderStatus === 'Ödeme Bekleniyor') && (
+                              <button
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer ml-1"
+                                title="Siparişi İptal Et ve Sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
 

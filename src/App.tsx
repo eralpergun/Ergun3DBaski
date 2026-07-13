@@ -28,6 +28,7 @@ import Cart from './components/Cart';
 import OrderTracker from './components/OrderTracker';
 import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
+import SupportChatWidget from './components/SupportChatWidget';
 import { hashPasscodeSync } from './utils/hash';
 import { Product, OrderItem, BankDetails, UserProfile } from './types';
 
@@ -602,6 +603,9 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 7/24 Live Support Chat Widget */}
+      <SupportChatWidget currentUser={customerUser} />
     </div>
   );
 }

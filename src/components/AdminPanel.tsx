@@ -21,12 +21,14 @@ import {
   X,
   Eye,
   Settings,
-  FileCode
+  FileCode,
+  MessageSquare,
+  Send
 } from 'lucide-react';
-import { Product, Order, BankDetails, UserProfile, OrderStatus } from '../types';
+import { Product, Order, BankDetails, UserProfile, OrderStatus, SupportChat, SupportMessage } from '../types';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'custom_settings' | 'users'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'custom_settings' | 'users' | 'chats'>('orders');
 
   // Firebase states
   const [orders, setOrders] = useState<Order[]>([]);
@@ -39,6 +41,11 @@ export default function AdminPanel() {
   });
   const [users, setUsers] = useState<any[]>([]);
   const [pricePerGram, setPricePerGram] = useState<number>(2.5);
+  
+  // Support Chats states
+  const [supportChats, setSupportChats] = useState<SupportChat[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -116,6 +123,18 @@ export default function AdminPanel() {
       }
     });
 
+    const chatsRef = ref(database, 'support_chats');
+    const unsubscribeChats = onValue(chatsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const chatsList = Object.values(data) as SupportChat[];
+        chatsList.sort((a, b) => b.updatedAt - a.updatedAt);
+        setSupportChats(chatsList);
+      } else {
+        setSupportChats([]);
+      }
+    });
+
     setLoading(false);
     return () => {
       unsubscribeOrders();
@@ -123,6 +142,7 @@ export default function AdminPanel() {
       unsubscribeBank();
       unsubscribeUsers();
       unsubscribePriceGram();
+      unsubscribeChats();
     };
   }, []);
 
@@ -250,6 +270,27 @@ export default function AdminPanel() {
     }
   };
 
+  // Delete Order completely (Admin override)
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm('Bu siparişi tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
+    try {
+      const ordersRef = ref(database, 'orders');
+      onValue(ordersRef, async (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const dbKey = Object.keys(data).find(key => data[key].id === orderId);
+          if (dbKey) {
+            await remove(ref(database, `orders/${dbKey}`));
+            alert('Sipariş başarıyla silindi.');
+          }
+        }
+      }, { onlyOnce: true });
+    } catch (err) {
+      console.error(err);
+      alert('Sipariş silinirken bir hata oluştu.');
+    }
+  };
+
   // Update Bank details
   const handleUpdateBankDetails = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,6 +362,29 @@ export default function AdminPanel() {
     } catch (err) {
       console.error(err);
       alert('Şifre sıfırlanamadı.');
+    }
+  };
+
+  // Send admin reply in live support chat
+  const handleSendAdminReply = async () => {
+    if (!selectedChatId || !replyText.trim()) return;
+    try {
+      const chatRef = ref(database, `support_chats/${selectedChatId}`);
+      const messagesRef = ref(database, `support_chats/${selectedChatId}/messages`);
+      const adminMsg = {
+        sender: 'admin',
+        text: replyText,
+        timestamp: Date.now()
+      };
+      await push(messagesRef, adminMsg);
+      await update(chatRef, {
+        lastMessage: replyText,
+        updatedAt: Date.now()
+      });
+      setReplyText('');
+    } catch (err) {
+      console.error(err);
+      alert('Mesaj gönderilemedi.');
     }
   };
 
@@ -431,6 +495,16 @@ export default function AdminPanel() {
             <Users className="h-4 w-4" />
             Kullanıcı & Profil Yönetimi ({users.length})
           </button>
+
+          <button
+            onClick={() => setActiveTab('chats')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'chats' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Destek Sohbetleri ({supportChats.length})
+          </button>
         </div>
 
         <div className="p-6 md:p-8">
@@ -504,6 +578,20 @@ export default function AdminPanel() {
                               <option value="Kargolandı">🚚 Kargolandı / Teslim Edildi</option>
                               <option value="İptal Edildi">✕ İptal Edildi</option>
                             </select>
+                          </div>
+
+                          <div className="flex flex-col justify-end">
+                            <span className="block text-[10px] font-bold text-transparent select-none mb-1">
+                              İşlem
+                            </span>
+                            <button
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl border border-rose-150 hover:border-rose-200 transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer shadow-sm"
+                              title="Siparişi Tamamen Sil"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Sil
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -995,6 +1083,165 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'chats' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg">Canlı Destek Sohbetleri (Real-time)</h3>
+                  <p className="text-xs text-slate-400">Müşterilerden gelen canlı destek ve bot taleplerini anlık olarak yanıtlayın.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-slate-50 p-4 rounded-3xl border border-slate-100 min-h-[500px]">
+                {/* Chat Sessions list */}
+                <div className="lg:col-span-1 bg-white rounded-2xl p-4 border border-slate-100 space-y-3 overflow-y-auto max-h-[500px]">
+                  <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">Aktif Sohbetler ({supportChats.length})</h4>
+                  {supportChats.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-8">Henüz başlatılmış bir sohbet yok.</p>
+                  ) : (
+                    supportChats.map((chat) => {
+                      const isSelected = selectedChatId === chat.id;
+                      return (
+                        <button
+                          key={chat.id}
+                          onClick={() => {
+                            setSelectedChatId(chat.id);
+                          }}
+                          className={`w-full text-left p-3.5 rounded-xl border transition-all flex flex-col gap-1.5 cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                              : 'bg-slate-50 hover:bg-slate-100/70 border-slate-150 text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-bold text-xs truncate max-w-[120px]">
+                              {chat.customerName || 'Ziyaretçi'}
+                            </span>
+                            <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                              chat.liveMode
+                                ? isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+                                : isSelected ? 'bg-white/10 text-slate-200' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {chat.liveMode ? 'Canlı' : 'Bot'}
+                            </span>
+                          </div>
+                          <p className={`text-xs truncate w-full ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                            {chat.lastMessage || 'Mesaj yok'}
+                          </p>
+                          <span className={`text-[9px] ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            {new Date(chat.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Message display & input area */}
+                <div className="lg:col-span-2 bg-white rounded-2xl p-4 border border-slate-100 flex flex-col h-[500px]">
+                  {selectedChatId ? (
+                    (() => {
+                      const selectedChat = supportChats.find(c => c.id === selectedChatId);
+                      const messagesList = selectedChat?.messages 
+                        ? Object.entries(selectedChat.messages).map(([id, msg]) => ({ id, ...msg as any })).sort((a, b) => a.timestamp - b.timestamp)
+                        : [];
+
+                      return (
+                        <>
+                          {/* Chat Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-sm">{selectedChat?.customerName || 'Ziyaretçi'}</h4>
+                              <p className="text-[10px] text-slate-400">ID: {selectedChatId}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {/* Close chat button */}
+                              <button
+                                onClick={async () => {
+                                  if (confirm('Bu sohbeti kapatmak istediğinize emin misiniz?')) {
+                                    await remove(ref(database, `support_chats/${selectedChatId}`));
+                                    setSelectedChatId(null);
+                                  }
+                                }}
+                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                                title="Sohbeti Sil/Kapat"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Chat History */}
+                          <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 mb-4 flex flex-col">
+                            {messagesList.length === 0 ? (
+                              <p className="text-xs text-slate-400 text-center my-auto">Henüz mesaj yok.</p>
+                            ) : (
+                              messagesList.map((msg) => (
+                                <div
+                                  key={msg.id}
+                                  className={`flex gap-2.5 max-w-[85%] ${
+                                    msg.sender === 'admin' ? 'ml-auto flex-row-reverse' : ''
+                                  }`}
+                                >
+                                  <div
+                                    className={`p-2.5 rounded-2xl text-xs leading-relaxed ${
+                                      msg.sender === 'admin'
+                                        ? 'bg-slate-900 text-white rounded-tr-none'
+                                        : msg.sender === 'user'
+                                        ? 'bg-indigo-50 text-indigo-900 rounded-tl-none border border-indigo-100'
+                                        : 'bg-slate-50 text-slate-600 rounded-tl-none border border-slate-100'
+                                    }`}
+                                  >
+                                    <div className="font-bold text-[9px] opacity-70 mb-0.5 uppercase tracking-wide">
+                                      {msg.sender === 'admin' ? 'Siz' : msg.sender === 'user' ? 'Kullanıcı' : 'Sistem/Bot'}
+                                    </div>
+                                    <p>{msg.text}</p>
+                                    <span className="text-[8px] opacity-50 block text-right mt-1">
+                                      {new Date(msg.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Chat Input */}
+                          <div className="flex gap-2 pt-3 border-t border-slate-100">
+                            <input
+                              type="text"
+                              placeholder="Cevabınızı buraya yazın..."
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  await handleSendAdminReply();
+                                }
+                              }}
+                              className="flex-1 px-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-slate-300 rounded-xl text-xs outline-none text-slate-800 transition-all"
+                            />
+                            <button
+                              onClick={handleSendAdminReply}
+                              disabled={!replyText.trim()}
+                              className="p-3 bg-indigo-600 disabled:opacity-40 hover:bg-indigo-700 disabled:hover:bg-indigo-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center cursor-pointer"
+                            >
+                              <Send className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <div className="h-full flex flex-col justify-center items-center text-center p-6 text-slate-400">
+                      <MessageSquare className="h-10 w-10 text-slate-300 mb-2" />
+                      <h5 className="font-bold text-slate-600 text-sm">Sohbet Seçilmedi</h5>
+                      <p className="text-xs max-w-[200px] mt-1">Sol taraftaki listeden aktif bir sohbet seçerek müşteriye yanıt yazın.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
