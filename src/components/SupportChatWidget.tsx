@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, Send, X, Headphones, Sparkles, User, Bot } from 'lucide-react';
-import { ref, onValue, push, set, get } from 'firebase/database';
+import { ref, onValue, push, set, get, update } from 'firebase/database';
 import { database } from '../lib/firebase';
 import { SupportMessage, SupportChat } from '../types';
 
@@ -169,7 +169,7 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
       // Send to Firebase
       const chatRef = ref(database, `support_chats/${chatId}`);
       await push(ref(database, `support_chats/${chatId}/messages`), userMsg);
-      await set(chatRef, {
+      await update(chatRef, {
         id: chatId,
         customerName: customerName || 'Ziyaretçi Müşteri',
         lastMessage: text,
@@ -242,8 +242,7 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
       });
     } else {
       // Make sure liveMode is set to true
-      await set(chatRef, {
-        ...chatSnap.val(),
+      await update(chatRef, {
         customerName: finalName,
         liveMode: true,
         status: 'active',
@@ -355,26 +354,38 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
                 </div>
               ) : (
                 <>
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex gap-2.5 max-w-[85%] ${
-                        msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
-                      }`}
-                    >
+                  {messages.map((msg) => {
+                    const isUser = msg.sender === 'user';
+                    const isAdmin = msg.sender === 'admin';
+                    const isBot = msg.sender === 'bot';
+                    
+                    return (
                       <div
-                        className={`p-2.5 rounded-2xl text-xs leading-relaxed ${
-                          msg.sender === 'user'
-                            ? 'bg-indigo-600 text-white rounded-tr-none'
-                            : msg.sender === 'admin'
-                            ? 'bg-slate-900 text-white rounded-tl-none border border-slate-850'
-                            : 'bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-sm'
+                        key={msg.id}
+                        className={`flex flex-col gap-1 max-w-[85%] ${
+                          isUser ? 'ml-auto items-end' : 'items-start'
                         }`}
                       >
-                        {msg.text}
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                          {isUser ? 'Siz' : isAdmin ? '👨‍💼 Canlı Destek (Admin)' : '🤖 Akıllı Bot'}
+                        </span>
+                        <div
+                          className={`p-2.5 rounded-2xl text-xs leading-relaxed shadow-sm border ${
+                            isUser
+                              ? 'bg-indigo-600 text-white border-indigo-600 rounded-tr-none'
+                              : isAdmin
+                              ? 'bg-slate-900 text-white border-slate-900 rounded-tl-none'
+                              : 'bg-white text-slate-700 border-slate-100 rounded-tl-none'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                          <span className={`text-[8px] block text-right mt-1 ${isUser || isAdmin ? 'text-indigo-100/70' : 'text-slate-400'}`}>
+                            {new Date(msg.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {isTyping && (
                     <div className="flex gap-2.5 max-w-[85%]">

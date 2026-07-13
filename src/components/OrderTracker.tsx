@@ -296,6 +296,8 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
         return 'bg-teal-50 text-teal-600 border border-teal-200';
       case 'İptal Edildi':
         return 'bg-rose-50 text-rose-600 border border-rose-200';
+      case 'Kapatıldı':
+        return 'bg-slate-100 text-slate-500 border border-slate-300';
       default:
         return 'bg-slate-50 text-slate-600 border border-slate-200';
     }

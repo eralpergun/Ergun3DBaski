@@ -4,18 +4,21 @@ import { OrderItem } from '../types';
 
 interface CustomPrintFormProps {
   pricePerGram: number;
+  pricePerGramMultiColor: number;
   onAddCustomToCart: (item: OrderItem) => void;
 }
 
-export default function CustomPrintForm({ pricePerGram, onAddCustomToCart }: CustomPrintFormProps) {
+export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, onAddCustomToCart }: CustomPrintFormProps) {
   const [designName, setDesignName] = useState('');
   const [makerworldLink, setMakerworldLink] = useState('');
   const [estimatedWeight, setEstimatedWeight] = useState<number>(10);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [printType, setPrintType] = useState<'single' | 'multi'>('single');
 
-  const calculatedPrice = estimatedWeight * pricePerGram;
+  const currentPricePerGram = printType === 'multi' ? pricePerGramMultiColor : pricePerGram;
+  const calculatedPrice = estimatedWeight * currentPricePerGram;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -75,7 +78,8 @@ export default function CustomPrintForm({ pricePerGram, onAddCustomToCart }: Cus
         fileName: uploadedFile ? uploadedFile.name : 'Makerworld Tasarımı',
         makerworldLink: makerworldLink || undefined,
         estimatedWeight: estimatedWeight,
-        pricePerGram: pricePerGram,
+        pricePerGram: currentPricePerGram,
+        printType: printType,
       },
     };
 
@@ -213,6 +217,52 @@ export default function CustomPrintForm({ pricePerGram, onAddCustomToCart }: Cus
             </div>
           </div>
 
+          {/* Print Color Selection */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              Baskı Renk Seçeneği *
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setPrintType('single')}
+                className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
+                  printType === 'single'
+                    ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
+                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
+                <div>
+                  <span className="block text-sm font-bold">Tek Renk Baskı</span>
+                  <span className="text-[10px] opacity-75">Standart tek renk filament</span>
+                </div>
+                <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
+                  ₺{pricePerGram}/g
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrintType('multi')}
+                className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
+                  printType === 'multi'
+                    ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
+                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
+                <div>
+                  <span className="block text-sm font-bold flex items-center gap-1.5">
+                    🌈 Çok Renkli Baskı
+                  </span>
+                  <span className="text-[10px] opacity-75">AMS ile çok renkli üretim</span>
+                </div>
+                <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
+                  ₺{pricePerGramMultiColor}/g
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* Pricing calculation display */}
           <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -220,9 +270,9 @@ export default function CustomPrintForm({ pricePerGram, onAddCustomToCart }: Cus
                 <Calculator className="h-5 w-5" />
               </div>
               <div>
-                <span className="text-xs text-slate-400 block font-medium">Birim Gram Fiyatı: ₺{pricePerGram}</span>
+                <span className="text-xs text-slate-400 block font-medium">Birim Gram Fiyatı: ₺{currentPricePerGram}</span>
                 <span className="text-sm text-slate-300">
-                  {estimatedWeight}g x ₺{pricePerGram}
+                  {estimatedWeight}g x ₺{currentPricePerGram}
                 </span>
               </div>
             </div>

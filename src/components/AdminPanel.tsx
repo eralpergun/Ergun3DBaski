@@ -41,6 +41,7 @@ export default function AdminPanel() {
   });
   const [users, setUsers] = useState<any[]>([]);
   const [pricePerGram, setPricePerGram] = useState<number>(2.5);
+  const [pricePerGramMultiColor, setPricePerGramMultiColor] = useState<number>(4.5);
   
   // Support Chats states
   const [supportChats, setSupportChats] = useState<SupportChat[]>([]);
@@ -123,6 +124,13 @@ export default function AdminPanel() {
       }
     });
 
+    const priceGramMultiRef = ref(database, 'customSettings/pricePerGramMultiColor');
+    const unsubscribePriceGramMulti = onValue(priceGramMultiRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setPricePerGramMultiColor(snapshot.val());
+      }
+    });
+
     const chatsRef = ref(database, 'support_chats');
     const unsubscribeChats = onValue(chatsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -142,6 +150,7 @@ export default function AdminPanel() {
       unsubscribeBank();
       unsubscribeUsers();
       unsubscribePriceGram();
+      unsubscribePriceGramMulti();
       unsubscribeChats();
     };
   }, []);
@@ -308,7 +317,8 @@ export default function AdminPanel() {
     e.preventDefault();
     try {
       await set(ref(database, 'customSettings/pricePerGram'), Number(pricePerGram));
-      alert('Gram fiyatı güncellendi!');
+      await set(ref(database, 'customSettings/pricePerGramMultiColor'), Number(pricePerGramMultiColor));
+      alert('Baskı gram fiyatları başarıyla güncellendi!');
     } catch (err) {
       console.error(err);
       alert('Hata oluştu.');
@@ -577,21 +587,33 @@ export default function AdminPanel() {
                               <option value="Hazır">✓ Baskı Bitti (Hazır)</option>
                               <option value="Kargolandı">🚚 Kargolandı / Teslim Edildi</option>
                               <option value="İptal Edildi">✕ İptal Edildi</option>
+                              <option value="Kapatıldı">🔒 Sipariş Kapatıldı (Arşiv)</option>
                             </select>
                           </div>
 
                           <div className="flex flex-col justify-end">
-                            <span className="block text-[10px] font-bold text-transparent select-none mb-1">
-                              İşlem
+                            <span className="block text-[10px] font-bold text-slate-400 mb-1">
+                              İşlemler
                             </span>
-                            <button
-                              onClick={() => handleDeleteOrder(order.id)}
-                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl border border-rose-150 hover:border-rose-200 transition-all flex items-center gap-1.5 font-bold text-xs cursor-pointer shadow-sm"
-                              title="Siparişi Tamamen Sil"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Sil
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              {order.orderStatus !== 'Kapatıldı' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, 'Kapatıldı')}
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 transition-all flex items-center gap-1 font-bold text-xs cursor-pointer shadow-sm"
+                                  title="Siparişi Kapat"
+                                >
+                                  🔒 Kapat
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteOrder(order.id)}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-xl border border-rose-150 hover:border-rose-200 transition-all flex items-center gap-1 font-bold text-xs cursor-pointer shadow-sm"
+                                title="Siparişi Tamamen Sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Sil
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -936,21 +958,41 @@ export default function AdminPanel() {
                 </div>
 
                 <form onSubmit={handleUpdatePricePerGram} className="space-y-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Gram Başına Ücret (₺)
-                    </label>
-                    <div className="flex items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                      <input
-                        type="number"
-                        required
-                        step="0.01"
-                        min="0.1"
-                        value={pricePerGram}
-                        onChange={(e) => setPricePerGram(Number(e.target.value))}
-                        className="w-24 text-base font-extrabold text-slate-900 focus:outline-none"
-                      />
-                      <span className="text-xs font-semibold text-slate-400">₺ / Gram</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Tek Renk Gram Ücreti (₺)
+                      </label>
+                      <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <input
+                          type="number"
+                          required
+                          step="0.01"
+                          min="0.1"
+                          value={pricePerGram}
+                          onChange={(e) => setPricePerGram(Number(e.target.value))}
+                          className="w-full text-base font-extrabold text-slate-900 focus:outline-none"
+                        />
+                        <span className="text-xs font-semibold text-slate-400 shrink-0">₺ / g</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        🌈 Çok Renkli Gram Ücreti (₺)
+                      </label>
+                      <div className="flex items-center gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <input
+                          type="number"
+                          required
+                          step="0.01"
+                          min="0.1"
+                          value={pricePerGramMultiColor}
+                          onChange={(e) => setPricePerGramMultiColor(Number(e.target.value))}
+                          className="w-full text-base font-extrabold text-slate-900 focus:outline-none"
+                        />
+                        <span className="text-xs font-semibold text-slate-400 shrink-0">₺ / g</span>
+                      </div>
                     </div>
                   </div>
 
@@ -958,7 +1000,7 @@ export default function AdminPanel() {
                     type="submit"
                     className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl text-xs hover:bg-slate-850 hover:shadow-slate-200/50 hover:shadow-lg transition-all cursor-pointer"
                   >
-                    Gram Başı Fiyatı Kaydet
+                    Baskı Fiyatlarını Kaydet
                   </button>
                 </form>
               </div>

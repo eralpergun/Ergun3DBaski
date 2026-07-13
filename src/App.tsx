@@ -54,6 +54,7 @@ export default function App() {
     details: 'Lütfen Havale/EFT açıklama kısmına sadece sipariş kodunuzu yazınız.'
   });
   const [pricePerGram, setPricePerGram] = useState<number>(2.5);
+  const [pricePerGramMultiColor, setPricePerGramMultiColor] = useState<number>(4.5);
 
   // Initialize and Seed Database if empty
   useEffect(() => {
@@ -114,7 +115,12 @@ export default function App() {
         const settingsRef = ref(database, 'customSettings');
         const settingsSnap = await get(settingsRef);
         if (!settingsSnap.exists()) {
-          await set(settingsRef, { pricePerGram: 2.5 });
+          await set(settingsRef, { pricePerGram: 2.5, pricePerGramMultiColor: 4.5 });
+        } else {
+          const val = settingsSnap.val();
+          if (val && val.pricePerGramMultiColor === undefined) {
+            await set(ref(database, 'customSettings/pricePerGramMultiColor'), 4.5);
+          }
         }
       } catch (err) {
         console.error('Database seeding failed:', err);
@@ -144,10 +150,17 @@ export default function App() {
       }
     });
 
+    const unsubGramMulti = onValue(ref(database, 'customSettings/pricePerGramMultiColor'), (snapshot) => {
+      if (snapshot.exists()) {
+        setPricePerGramMultiColor(snapshot.val());
+      }
+    });
+
     return () => {
       unsubProducts();
       unsubBank();
       unsubGram();
+      unsubGramMulti();
     };
   }, []);
 
@@ -437,6 +450,7 @@ export default function App() {
                   <div className="max-w-3xl mx-auto">
                     <CustomPrintForm 
                       pricePerGram={pricePerGram} 
+                      pricePerGramMultiColor={pricePerGramMultiColor}
                       onAddCustomToCart={handleAddCustomToCart} 
                     />
                   </div>

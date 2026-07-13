@@ -17,13 +17,14 @@ export interface OrderItem {
     makerworldLink?: string;
     estimatedWeight: number; // in grams
     pricePerGram: number;
+    printType?: 'single' | 'multi';
   };
   quantity: number;
   type: 'catalog' | 'custom';
   price: number; // Single item price
 }
 
-export type OrderStatus = "Sipariş Alındı" | "Ödeme Bekleniyor" | "Baskıda" | "Hazır" | "Kargolandı" | "İptal Edildi";
+export type OrderStatus = "Sipariş Alındı" | "Ödeme Bekleniyor" | "Baskıda" | "Hazır" | "Kargolandı" | "İptal Edildi" | "Kapatıldı";
 
 export interface Order {
   id: string;
@@ -56,6 +57,7 @@ export interface UserProfile {
 
 export interface CustomSettings {
   pricePerGram: number;
+  pricePerGramMultiColor: number;
 }
 
 export interface SupportMessage {
