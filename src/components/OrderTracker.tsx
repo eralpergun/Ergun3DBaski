@@ -372,6 +372,18 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                         ⏱️ Baskı Süresi: {item.customPrint.estimatedDuration} (Bambulab A1)
                       </div>
                     )}
+                    {item.type === 'custom' && item.customPrint?.selectedColors && item.customPrint.selectedColors.length > 0 && (
+                      <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1.5 flex-wrap">
+                        <span>🎨 Renkler:</span>
+                        <div className="flex gap-1 flex-wrap">
+                          {item.customPrint.selectedColors.map((color, cIdx) => (
+                            <span key={cIdx} className="bg-slate-100 text-slate-700 px-1 py-0.2 rounded text-[9px] font-bold border border-slate-200">
+                              {color}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -679,6 +691,18 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                               {item.type === 'custom' && item.customPrint?.estimatedDuration && (
                                 <div className="text-[10px] text-indigo-600 font-bold flex items-center gap-1">
                                   ⏱️ Baskı Süresi: {item.customPrint.estimatedDuration} (Bambulab A1)
+                                </div>
+                              )}
+                              {item.type === 'custom' && item.customPrint?.selectedColors && item.customPrint.selectedColors.length > 0 && (
+                                <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  <span>🎨 Renkler:</span>
+                                  <div className="flex gap-1 flex-wrap">
+                                    {item.customPrint.selectedColors.map((color, cIdx) => (
+                                      <span key={cIdx} className="bg-slate-100 text-slate-700 px-1 py-0.2 rounded text-[9px] font-bold border border-slate-200">
+                                        {color}
+                                      </span>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>

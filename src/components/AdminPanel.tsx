@@ -42,6 +42,7 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<any[]>([]);
   const [pricePerGram, setPricePerGram] = useState<number>(2.5);
   const [pricePerGramMultiColor, setPricePerGramMultiColor] = useState<number>(4.5);
+  const [ordersEnabled, setOrdersEnabled] = useState<boolean>(true);
   
   // Support Chats states
   const [supportChats, setSupportChats] = useState<SupportChat[]>([]);
@@ -131,6 +132,15 @@ export default function AdminPanel() {
       }
     });
 
+    const ordersEnabledRef = ref(database, 'customSettings/ordersEnabled');
+    const unsubscribeOrdersEnabled = onValue(ordersEnabledRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setOrdersEnabled(snapshot.val() !== false);
+      } else {
+        setOrdersEnabled(true);
+      }
+    });
+
     const chatsRef = ref(database, 'support_chats');
     const unsubscribeChats = onValue(chatsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -151,6 +161,7 @@ export default function AdminPanel() {
       unsubscribeUsers();
       unsubscribePriceGram();
       unsubscribePriceGramMulti();
+      unsubscribeOrdersEnabled();
       unsubscribeChats();
     };
   }, []);
@@ -635,10 +646,20 @@ export default function AdminPanel() {
                                   {item.type === 'catalog' ? item.product?.category : `Özel Sipariş (${item.customPrint?.estimatedWeight}g - ${item.customPrint?.printType === 'multi' ? '🌈 Çok Renkli' : 'Tek Renk'})`}
                                 </p>
                                 {item.type === 'custom' && item.customPrint?.estimatedDuration && (
-                                  <div className="mt-1">
+                                  <div className="mt-1 flex flex-wrap gap-1 items-center">
                                     <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100">
                                       ⏱️ {item.customPrint.estimatedDuration} (Bambulab A1)
                                     </span>
+                                  </div>
+                                )}
+                                {item.type === 'custom' && item.customPrint?.selectedColors && item.customPrint.selectedColors.length > 0 && (
+                                  <div className="mt-1 flex flex-wrap gap-1 items-center">
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Seçilen Renkler:</span>
+                                    {item.customPrint.selectedColors.map((color, cIdx) => (
+                                      <span key={cIdx} className="inline-flex text-[9px] font-extrabold bg-slate-200/80 text-slate-800 px-1.5 py-0.5 rounded border border-slate-300">
+                                        {color}
+                                      </span>
+                                    ))}
                                   </div>
                                 )}
                                 {item.type === 'custom' && item.customPrint?.makerworldLink && (
@@ -1010,6 +1031,37 @@ export default function AdminPanel() {
                     Baskı Fiyatlarını Kaydet
                   </button>
                 </form>
+
+                <div className="border-t border-slate-200/60 pt-5 mt-2 space-y-3">
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-xs mb-1 flex items-center gap-1.5">
+                      🔒 Sipariş Alımı Durumu (Geçici Kapatma)
+                    </h4>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      Sipariş alımını kısa bir süreliğine durdurabilirsiniz. Kapalıyken müşteriler yeni sipariş oluşturamaz ve bilgilendirici bir uyarı görür.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
+                    <span className="text-xs font-bold text-slate-700">
+                      {ordersEnabled ? '🟢 Sipariş Alımı Aktif' : '🔴 Sipariş Alımı Kapalı'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newStatus = !ordersEnabled;
+                        await set(ref(database, 'customSettings/ordersEnabled'), newStatus);
+                        alert(`Sipariş alımı ${newStatus ? 'AKTİF hale getirildi' : 'GEÇİCİ OLARAK DURDURULDU'}!`);
+                      }}
+                      className={`px-4 py-2 text-xs font-extrabold rounded-xl cursor-pointer transition-all ${
+                        ordersEnabled 
+                          ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200' 
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200'
+                      }`}
+                    >
+                      {ordersEnabled ? 'Siparişleri Kapat' : 'Siparişleri Aç'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

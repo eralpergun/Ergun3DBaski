@@ -19,6 +19,7 @@ export interface OrderItem {
     pricePerGram: number;
     printType?: 'single' | 'multi';
     estimatedDuration?: string;
+    selectedColors?: string[];
   };
   quantity: number;
   type: 'catalog' | 'custom';

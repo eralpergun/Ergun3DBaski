@@ -11,6 +11,7 @@ interface CartProps {
   userId: string;
   onCheckoutComplete: (orderId: string) => void;
   onClose: () => void;
+  ordersEnabled?: boolean;
 }
 
 export default function Cart({
@@ -21,7 +22,8 @@ export default function Cart({
   bankDetails,
   userId,
   onCheckoutComplete,
-  onClose
+  onClose,
+  ordersEnabled = true
 }: CartProps) {
   const [customerName, setCustomerName] = useState('');
   const [customerContact, setCustomerContact] = useState('');
@@ -42,6 +44,10 @@ export default function Cart({
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ordersEnabled) {
+      alert('Sipariş sistemi şu an geçici olarak yeni siparişlere kapalıdır.');
+      return;
+    }
     if (cartItems.length === 0) return;
     if (!customerName || !customerContact || !senderName) {
       alert('Lütfen tüm zorunlu alanları doldurun.');
@@ -185,6 +191,19 @@ export default function Cart({
                       <span>{item.customPrint.estimatedDuration}</span>
                     </div>
                   )}
+
+                  {item.type === 'custom' && item.customPrint?.selectedColors && item.customPrint.selectedColors.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 mt-1 text-[10px] font-semibold text-slate-500">
+                      <span>🎨 Renkler:</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {item.customPrint.selectedColors.map((color, cIdx) => (
+                          <span key={cIdx} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[9px] border border-slate-200 font-bold">
+                            {color}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {item.type === 'custom' && item.customPrint?.makerworldLink && (
                     <a href={item.customPrint.makerworldLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-600 underline truncate block mt-0.5 max-w-[180px]">
@@ -321,17 +340,25 @@ export default function Cart({
             />
           </div>
 
+          {!ordersEnabled && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-semibold leading-relaxed">
+              ⚠️ <strong>Siparişler Geçici Olarak Kapalıdır:</strong> Mağazamız şu anda yeni sipariş alımına kısa bir süreliğine kapalıdır. Mevcut siparişleriniz kesintisiz olarak hazırlanmaya devam etmektedir. Lütfen daha sonra tekrar deneyiniz.
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={cartItems.length === 0 || isSubmitting}
+            disabled={cartItems.length === 0 || isSubmitting || !ordersEnabled}
             className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
-              cartItems.length === 0 
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+              (cartItems.length === 0 || !ordersEnabled)
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300/35' 
                 : 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-slate-200/50 hover:shadow-lg'
             }`}
           >
             {isSubmitting ? (
               <span>Siparişiniz Gönderiliyor...</span>
+            ) : !ordersEnabled ? (
+              <span>Sipariş Sistemi Geçici Olarak Kapalı</span>
             ) : (
               <>
                 <span>Siparişi Havale ile Tamamla</span>

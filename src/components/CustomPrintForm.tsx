@@ -2,13 +2,27 @@ import React, { useState } from 'react';
 import { Upload, Link2, Calculator, Plus, Check, Clock, Gauge, Zap } from 'lucide-react';
 import { OrderItem } from '../types';
 
+export const AVAILABLE_COLORS = [
+  { name: 'Siyah', hex: '#0f172a', textClass: 'text-white' },
+  { name: 'Beyaz', hex: '#f8fafc', border: 'border-slate-300', textClass: 'text-slate-900' },
+  { name: 'Gri', hex: '#64748b', textClass: 'text-white' },
+  { name: 'Kırmızı', hex: '#ef4444', textClass: 'text-white' },
+  { name: 'Mavi', hex: '#3b82f6', textClass: 'text-white' },
+  { name: 'Yeşil', hex: '#22c55e', textClass: 'text-white' },
+  { name: 'Sarı', hex: '#eab308', textClass: 'text-slate-900' },
+  { name: 'Turuncu', hex: '#f97316', textClass: 'text-white' },
+  { name: 'Mor', hex: '#a855f7', textClass: 'text-white' },
+  { name: 'Pembe', hex: '#ec4899', textClass: 'text-white' },
+];
+
 interface CustomPrintFormProps {
   pricePerGram: number;
   pricePerGramMultiColor: number;
   onAddCustomToCart: (item: OrderItem) => void;
+  ordersEnabled?: boolean;
 }
 
-export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, onAddCustomToCart }: CustomPrintFormProps) {
+export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, onAddCustomToCart, ordersEnabled = true }: CustomPrintFormProps) {
   const [designName, setDesignName] = useState('');
   const [makerworldLink, setMakerworldLink] = useState('');
   const [estimatedWeight, setEstimatedWeight] = useState<number>(10);
@@ -16,6 +30,7 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
   const [isDragOver, setIsDragOver] = useState(false);
   const [success, setSuccess] = useState(false);
   const [printType, setPrintType] = useState<'single' | 'multi'>('single');
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
   const currentPricePerGram = printType === 'multi' ? pricePerGramMultiColor : pricePerGram;
   const calculatedPrice = estimatedWeight * currentPricePerGram;
@@ -86,12 +101,24 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ordersEnabled) {
+      alert('Sipariş sistemi şu an geçici olarak yeni siparişlere kapalıdır.');
+      return;
+    }
     if (!designName) {
       alert('Lütfen model adı giriniz.');
       return;
     }
     if (!uploadedFile && !makerworldLink) {
       alert('Lütfen bir STL dosyası yükleyin veya Makerworld tasarım linki ekleyin.');
+      return;
+    }
+    if (printType === 'single' && selectedColors.length !== 1) {
+      alert('Lütfen tek renk baskı için tam olarak 1 adet renk seçiniz.');
+      return;
+    }
+    if (printType === 'multi' && (selectedColors.length < 2 || selectedColors.length > 4)) {
+      alert('Lütfen çok renkli baskı için en az 2, en fazla 4 adet renk seçiniz.');
       return;
     }
 
@@ -106,6 +133,7 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
         pricePerGram: currentPricePerGram,
         printType: printType,
         estimatedDuration: printTime.formatted,
+        selectedColors: selectedColors,
       },
     };
 
@@ -117,6 +145,7 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
     setMakerworldLink('');
     setEstimatedWeight(10);
     setUploadedFile(null);
+    setSelectedColors([]);
 
     setTimeout(() => {
       setSuccess(false);
@@ -244,48 +273,116 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
           </div>
 
           {/* Print Color Selection */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-              Baskı Renk Seçeneği *
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setPrintType('single')}
-                className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
-                  printType === 'single'
-                    ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
-                }`}
-              >
-                <div>
-                  <span className="block text-sm font-bold">Tek Renk Baskı</span>
-                  <span className="text-[10px] opacity-75">Standart tek renk filament</span>
-                </div>
-                <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
-                  ₺{pricePerGram}/g
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPrintType('multi')}
-                className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
-                  printType === 'multi'
-                    ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
-                }`}
-              >
-                <div>
-                  <span className="block text-sm font-bold flex items-center gap-1.5">
-                    🌈 Çok Renkli Baskı
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                Baskı Renk Seçeneği *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintType('single');
+                    setSelectedColors([]);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
+                    printType === 'single'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
+                      : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                  }`}
+                >
+                  <div>
+                    <span className="block text-sm font-bold">Tek Renk Baskı</span>
+                    <span className="text-[10px] opacity-75">Standart tek renk filament</span>
+                  </div>
+                  <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
+                    ₺{pricePerGram}/g
                   </span>
-                  <span className="text-[10px] opacity-75">AMS ile çok renkli üretim</span>
-                </div>
-                <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
-                  ₺{pricePerGramMultiColor}/g
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintType('multi');
+                    setSelectedColors([]);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-center justify-between ${
+                    printType === 'multi'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg'
+                      : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                  }`}
+                >
+                  <div>
+                    <span className="block text-sm font-bold flex items-center gap-1.5">
+                      🌈 Çok Renkli Baskı
+                    </span>
+                    <span className="text-[10px] opacity-75">AMS ile çok renkli üretim</span>
+                  </div>
+                  <span className="text-xs font-extrabold px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300">
+                    ₺{pricePerGramMultiColor}/g
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filament Color Selection Panel */}
+            <div className="bg-slate-950/40 rounded-2xl p-4 border border-slate-800/60 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800/40 pb-2">
+                <span className="text-xs font-bold text-slate-300">
+                  {printType === 'single' ? 'Filament Rengi Seçin (1 Adet)' : 'Filament Renkleri Seçin (2-4 Adet)'}
                 </span>
-              </button>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {selectedColors.length} seçildi
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                {AVAILABLE_COLORS.map((color) => {
+                  const isSelected = selectedColors.includes(color.name);
+                  return (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => {
+                        if (printType === 'single') {
+                          setSelectedColors([color.name]);
+                        } else {
+                          if (isSelected) {
+                            setSelectedColors(selectedColors.filter(c => c !== color.name));
+                          } else {
+                            if (selectedColors.length >= 4) {
+                              alert('Maksimum 4 renk seçebilirsiniz (AMS Lite kapasitesi).');
+                              return;
+                            }
+                            setSelectedColors([...selectedColors, color.name]);
+                          }
+                        }
+                      }}
+                      className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? 'border-indigo-500 bg-indigo-500/10 text-white font-bold ring-2 ring-indigo-500/30'
+                          : 'border-slate-800 bg-slate-950/20 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                      }`}
+                    >
+                      <span 
+                        className={`w-4.5 h-4.5 rounded-full border ${color.border || 'border-transparent'} shrink-0`} 
+                        style={{ backgroundColor: color.hex }}
+                      />
+                      <span className="text-xs truncate">{color.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {printType === 'multi' && selectedColors.length < 2 && (
+                <p className="text-[10px] text-indigo-400 font-semibold">
+                  💡 Çok renkli üretim için lütfen en az 2 renk seçiniz.
+                </p>
+              )}
+              {printType === 'single' && selectedColors.length === 0 && (
+                <p className="text-[10px] text-indigo-400 font-semibold">
+                  💡 Tek renk üretim için lütfen 1 renk seçiniz.
+                </p>
+              )}
             </div>
           </div>
 
@@ -363,16 +460,23 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
           {/* Form Actions */}
           <button
             type="submit"
+            disabled={!ordersEnabled}
             className={`w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 cursor-pointer ${
-              success 
-                ? 'bg-emerald-500 text-white shadow-emerald-950/30 shadow-xl' 
-                : 'bg-white text-slate-950 hover:bg-slate-100 hover:shadow-white/5 hover:shadow-xl'
+              !ordersEnabled
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+                : success 
+                  ? 'bg-emerald-500 text-white shadow-emerald-950/30 shadow-xl' 
+                  : 'bg-white text-slate-950 hover:bg-slate-100 hover:shadow-white/5 hover:shadow-xl'
             }`}
           >
             {success ? (
               <>
                 <Check className="h-5 w-5" />
                 Özel Baskı Sepete Eklendi!
+              </>
+            ) : !ordersEnabled ? (
+              <>
+                Sipariş Alımı Geçici Olarak Durduruldu
               </>
             ) : (
               <>

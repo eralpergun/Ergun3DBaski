@@ -55,6 +55,7 @@ export default function App() {
   });
   const [pricePerGram, setPricePerGram] = useState<number>(2.5);
   const [pricePerGramMultiColor, setPricePerGramMultiColor] = useState<number>(4.5);
+  const [ordersEnabled, setOrdersEnabled] = useState<boolean>(true);
 
   // Initialize and Seed Database if empty
   useEffect(() => {
@@ -115,11 +116,14 @@ export default function App() {
         const settingsRef = ref(database, 'customSettings');
         const settingsSnap = await get(settingsRef);
         if (!settingsSnap.exists()) {
-          await set(settingsRef, { pricePerGram: 2.5, pricePerGramMultiColor: 4.5 });
+          await set(settingsRef, { pricePerGram: 2.5, pricePerGramMultiColor: 4.5, ordersEnabled: true });
         } else {
           const val = settingsSnap.val();
           if (val && val.pricePerGramMultiColor === undefined) {
             await set(ref(database, 'customSettings/pricePerGramMultiColor'), 4.5);
+          }
+          if (val && val.ordersEnabled === undefined) {
+            await set(ref(database, 'customSettings/ordersEnabled'), true);
           }
         }
       } catch (err) {
@@ -156,11 +160,20 @@ export default function App() {
       }
     });
 
+    const unsubOrdersEnabled = onValue(ref(database, 'customSettings/ordersEnabled'), (snapshot) => {
+      if (snapshot.exists()) {
+        setOrdersEnabled(snapshot.val() !== false);
+      } else {
+        setOrdersEnabled(true);
+      }
+    });
+
     return () => {
       unsubProducts();
       unsubBank();
       unsubGram();
       unsubGramMulti();
+      unsubOrdersEnabled();
     };
   }, []);
 
@@ -452,6 +465,7 @@ export default function App() {
                       pricePerGram={pricePerGram} 
                       pricePerGramMultiColor={pricePerGramMultiColor}
                       onAddCustomToCart={handleAddCustomToCart} 
+                      ordersEnabled={ordersEnabled}
                     />
                   </div>
                 ) : (
@@ -611,6 +625,7 @@ export default function App() {
                     setView('tracker');
                   }}
                   onClose={() => setIsCartOpen(false)}
+                  ordersEnabled={ordersEnabled}
                 />
               </motion.div>
             </div>
