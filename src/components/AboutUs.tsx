@@ -33,7 +33,7 @@ export default function AboutUs() {
               Geleceğin teknolojisini bugünden üreterek, hayal ettiğiniz modelleri gerçeğe dönüştürüyoruz. Her bir siparişi büyük bir titizlik, özen ve merakla hazırlıyoruz.
             </p>
             <p className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
-              ⚡ <span className="text-slate-300 font-semibold">Aktif Donanım:</span> Şu an bünyemizde tam kalibre edilmiş 1 adet profesyonel 3D yazıcı bulunmakta olup, baskılarımızda yüksek mukavemet ve pürüzsüz yüzey kalitesi sunan <span className="text-white underline decoration-slate-500 decoration-2 font-semibold">eSUN PLA+</span> filamentleri kullanılmaktadır.
+              ⚡ <span className="text-slate-300 font-semibold">Aktif Donanım:</span> Şu an bünyemizde tam kalibre edilmiş 1 adet profesyonel 3D yazıcı bulunmakta olup, baskılarımızda yüksek mukavemet ve pürüzsüz yüzey kalitesi sunan <span className="text-white underline decoration-slate-500 decoration-2 font-semibold">Bambu Lab PLA</span> filamentleri kullanılmaktadır.
             </p>
           </div>
 
@@ -42,7 +42,7 @@ export default function AboutUs() {
               <div className="p-3 bg-slate-800 rounded-xl w-fit text-slate-300 mb-3">
                 <Printer className="h-6 w-6" />
               </div>
-              <h3 className="text-white font-semibold text-sm mb-1">eSUN PLA+</h3>
+              <h3 className="text-white font-semibold text-sm mb-1">Bambu Lab PLA</h3>
               <p className="text-xs text-slate-400">En kaliteli endüstriyel standartta filamentler</p>
             </div>
 

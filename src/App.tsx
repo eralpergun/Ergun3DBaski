@@ -231,7 +231,7 @@ export default function App() {
       <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5 px-4 text-center font-mono flex items-center justify-center gap-2 border-b border-slate-800">
         <Cpu className="h-3.5 w-3.5 text-slate-400 animate-pulse" />
         <span>Karabük Merkezli Profesyonel 3D Baskı Çözümleri</span>
-        <span className="hidden sm:inline">• eSUN PLA+ Filament Kalitesi</span>
+        <span className="hidden sm:inline">• Bambu Lab PLA Filament Kalitesi</span>
       </div>
 
       {/* Main Header / Navigation */}
@@ -483,7 +483,7 @@ export default function App() {
                         </span>
                         <h4 className="text-xl font-bold text-slate-900">Aradığınız Modeli Bulamadınız mı?</h4>
                         <p className="text-xs text-slate-500 max-w-lg leading-relaxed">
-                          Kendi STL dosyanızı yükleyin veya Makerworld tasarım linkini paylaşın, sizin için eSUN PLA+ filamenti ile milimetrik doğrulukta üretelim!
+                          Kendi STL dosyanızı yükleyin veya Makerworld tasarım linkini paylaşın, sizin için Bambu Lab PLA filamenti ile milimetrik doğrulukta üretelim!
                         </p>
                       </div>
                       <button
@@ -543,7 +543,7 @@ export default function App() {
                     <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex gap-3.5 items-start">
                       <Info className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
                       <div className="text-xs text-slate-500 leading-relaxed">
-                        <span className="font-semibold text-slate-800">Kalite Güvencesi:</span> Karabük'teki merkezimizde kullandığımız eSUN PLA+ filamentler, standart PLA'ya göre çok daha dayanıklıdır ve darbelere karşı ekstra dirençlidir. Hassas baskı kalitemizle siparişleriniz sorunsuz olarak teslim edilir.
+                        <span className="font-semibold text-slate-800">Kalite Güvencesi:</span> Karabük'teki merkezimizde kullandığımız Bambu Lab PLA filamentler, yüksek hızlarda bile mükemmel katman yapışması, yüksek dayanıklılık ve pürüzsüz yüzey kalitesi sunar. Hassas baskı kalitemizle siparişleriniz sorunsuz olarak teslim edilir.
                       </div>
                     </div>
                   </div>

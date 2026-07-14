@@ -160,8 +160,8 @@ export default function SupportChatWidget({ currentUser }: SupportChatWidgetProp
     if (q.includes('kargo') || q.includes('gönder') || q.includes('teslim') || q.includes('nereden') || q.includes('şehir')) {
       return "✈️ Karabük'teki merkezimizden tüm Türkiye'ye anlaşmalı ve indirimli kargolarımızla güvenli gönderim yapıyoruz. Havale sonrası siparişiniz hızla basılıp özenle paketlenir!";
     }
-    if (q.includes('filament') || q.includes('malzeme') || q.includes('pla') || q.includes('esun') || q.includes('plastik')) {
-      return "💪 Baskılarımızda birinci sınıf eSUN PLA+ filamentleri kullanıyoruz. PLA+'lar standart PLA filamentlere göre çok daha yüksek darbe direnci, mukavemet ve pürüzsüz yüzey kalitesi sunar.";
+    if (q.includes('filament') || q.includes('malzeme') || q.includes('pla') || q.includes('esun') || q.includes('plastik') || q.includes('bambulab')) {
+      return "💪 Baskılarımızda birinci sınıf Bambu Lab PLA filamentleri kullanıyoruz. Bambu Lab PLA filamentleri yüksek mukavemet, üstün hız uyumluluğu ve pürüzsüz yüzey kalitesi sunar.";
     }
     if (q.includes('takip') || q.includes('nerede') || q.includes('kod') || q.includes('sipariş')) {
       return "🔍 Siparişinizin durumunu (Baskıda, Hazır, Kargoda vb.) üst menüdeki 'Sipariş Takip' sekmesine giderek Sipariş Kodunuz ile anlık ve canlı olarak izleyebilirsiniz!";
