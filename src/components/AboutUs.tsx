@@ -1,7 +1,37 @@
-import { Printer, ShieldCheck, Heart, MapPin } from 'lucide-react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { Printer, ShieldCheck, Heart, MapPin, ChevronDown, HelpCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function AboutUs() {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const toggleFaq = (index: number) => {
+    setActiveIndex(activeIndex === index ? null : index);
+  };
+
+  const faqItems = [
+    {
+      question: "Hangi 3D yazıcı ve filament malzemelerini kullanıyorsunuz?",
+      answer: "Baskılarımızda endüstri standartlarında yüksek yüzey kalitesi ve pürüzsüz detaylar sunan profesyonel Bambu Lab 3D yazıcılar kullanmaktayız. Birincil malzeme olarak çevre dostu ve darbelere dayanıklı Bambu Lab PLA filamentlerini tercih ediyoruz. İhtiyaca göre PETG, ABS, ASA, TPU (esnek) ve Carbon Fiber filament seçenekleriyle de dayanıklı ve fonksiyonel üretimler gerçekleştirebiliyoruz."
+    },
+    {
+      question: "Baskı siparişleri ne kadar sürede üretilir? (Teslimat Süresi)",
+      answer: "Her ürünün tahmini baskı süresi (saat/dakika olarak) ürün kartlarında şeffaf bir şekilde gösterilmektedir. Küçük figür ve aksesuarlar genellikle 1-4 saat içinde tamamlanırken, büyük ve detaylı modellerin üretimi 12-24 saati bulabilir. Siparişleriniz baskı sırasına alınır ve tamamlandığında anında paketleme sürecine geçilir."
+    },
+    {
+      question: "Karabük içi elden teslimat ve diğer şehirlere kargo seçeneği var mı?",
+      answer: "Evet! Karabük merkezdeki müşterilerimiz için elden teslimat (buluşma noktalarından veya adresten kolay teslim) seçeneğimiz bulunmaktadır. Karabük dışındaki tüm şehirlere ise darbe emici özel havalı ambalajlar kullanarak anlaşmalı kargo firmalarıyla hızlı ve güvenli gönderim sağlıyoruz."
+    },
+    {
+      question: "Kendi tasarladığım veya internetten bulduğum .STL dosyasını bastırabilir miyim?",
+      answer: "Tabii ki! Menüde yer alan 'Özel Baskı' formunu kullanarak kendi 3D model dosyalarınızı (.stl, .obj) kolayca yükleyebilirsiniz. Yüklediğiniz modelin boyutuna, doluluk oranına (infill) ve seçtiğiniz renge göre sistemimiz size otomatik ve anlık bir fiyat teklifi sunacaktır."
+    },
+    {
+      question: "Sipariş sürecini nasıl takip edebilirim?",
+      answer: "Siparişinizi oluşturduktan sonra size verilen özel Sipariş Kodu ile 'Sipariş Takibi' sayfamızdan üretimin hangi aşamada olduğunu (Baskı Bekliyor, Yazdırılıyor, Kargoya Verildi vb.) canlı olarak izleyebilirsiniz. Ayrıca destek hattımız ve WhatsApp üzerinden de anlık durum sorgulaması yapabilirsiniz."
+    }
+  ];
+
   return (
     <section className="relative overflow-hidden rounded-3xl bg-radial from-slate-900 to-slate-950 text-white p-8 md:p-12 shadow-2xl border border-slate-800">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30"></div>
@@ -24,7 +54,7 @@ export default function AboutUs() {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 items-center">
+        <div className="grid md:grid-cols-2 gap-8 items-center mb-12">
           <div className="space-y-6 text-slate-300 text-sm md:text-base leading-relaxed">
             <p>
               Firmamız, merkezi <span className="text-white font-semibold">Karabük</span> olan, 13 yaşında genç ve dinamik bir girişimci tarafından heyecanla yönetilen yenilikçi bir <span className="text-slate-300 underline decoration-slate-400 decoration-1 font-semibold">3D baskı</span> işletmesidir.
@@ -69,6 +99,51 @@ export default function AboutUs() {
               <h3 className="text-white font-semibold text-sm mb-1">Güvenli EFT</h3>
               <p className="text-xs text-slate-400">Havale/EFT sonrası anında baskı onayı</p>
             </div>
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="mt-12 pt-10 border-t border-slate-800">
+          <div className="flex items-center gap-3 mb-8 justify-center">
+            <div className="p-2 bg-slate-800 rounded-xl text-slate-300">
+              <HelpCircle className="h-5 w-5 text-indigo-400" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight">Sıkça Sorulan Sorular</h3>
+          </div>
+
+          <div className="space-y-4 max-w-3xl mx-auto">
+            {faqItems.map((item, index) => {
+              const isOpen = activeIndex === index;
+              return (
+                <div 
+                  key={index} 
+                  className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden hover:border-slate-700/80 transition-all duration-300"
+                >
+                  <button
+                    onClick={() => toggleFaq(index)}
+                    className="w-full text-left px-5 py-4 flex items-center justify-between gap-4 font-semibold text-sm md:text-base text-slate-200 hover:text-white transition-colors"
+                  >
+                    <span>{item.question}</span>
+                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-300 flex-shrink-0 ${isOpen ? 'rotate-180 text-white' : ''}`} />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                      >
+                        <div className="px-5 pb-5 text-xs md:text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 pt-3">
+                          {item.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
