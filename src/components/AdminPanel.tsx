@@ -73,6 +73,8 @@ export default function AdminPanel() {
   const [newProdTagType, setNewProdTagType] = useState<'none' | 'sale' | 'special'>('none');
   const [newProdTagLabel, setNewProdTagLabel] = useState('');
   const [newProdStockCount, setNewProdStockCount] = useState<number | ''>('');
+  const [newProdPrintDuration, setNewProdPrintDuration] = useState<number | ''>('');
+  const [newProdMaterial, setNewProdMaterial] = useState<string>('PLA');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdImgUrl, setNewProdImgUrl] = useState('');
   const [newProdStlName, setNewProdStlName] = useState('');
@@ -90,6 +92,8 @@ export default function AdminPanel() {
   const [editingTagType, setEditingTagType] = useState<'none' | 'sale' | 'special'>('none');
   const [editingTagLabel, setEditingTagLabel] = useState('');
   const [editingStockCountValue, setEditingStockCountValue] = useState<number | ''>('');
+  const [editingPrintDurationValue, setEditingPrintDurationValue] = useState<number | ''>('');
+  const [editingMaterialValue, setEditingMaterialValue] = useState<string>('PLA');
 
   // Inventory state
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -255,6 +259,8 @@ export default function AdminPanel() {
         tagType: newProdTagType !== 'none' ? newProdTagType : undefined,
         tagLabel: newProdTagLabel.trim() || undefined,
         stockCount: newProdStockCount !== '' ? Number(newProdStockCount) : undefined,
+        printDuration: newProdPrintDuration !== '' ? Number(newProdPrintDuration) : undefined,
+        material: newProdMaterial.trim() || 'PLA',
         description: newProdDesc,
         imageUrl: newProdImgUrl || undefined,
         stlFileName: newProdStlName || undefined,
@@ -271,6 +277,8 @@ export default function AdminPanel() {
       setNewProdTagType('none');
       setNewProdTagLabel('');
       setNewProdStockCount('');
+      setNewProdPrintDuration('');
+      setNewProdMaterial('PLA');
       setNewProdDesc('');
       setNewProdImgUrl('');
       setNewProdStlName('');
@@ -381,7 +389,9 @@ export default function AdminPanel() {
               originalPrice: editingOriginalPriceValue ? Number(editingOriginalPriceValue) : null,
               tagType: editingTagType !== 'none' ? editingTagType : null,
               tagLabel: editingTagLabel.trim() || null,
-              stockCount: editingStockCountValue !== '' ? Number(editingStockCountValue) : null
+              stockCount: editingStockCountValue !== '' ? Number(editingStockCountValue) : null,
+              printDuration: editingPrintDurationValue !== '' ? Number(editingPrintDurationValue) : null,
+              material: editingMaterialValue.trim() || 'PLA'
             });
             setEditingProductId(null);
           }
@@ -1089,7 +1099,7 @@ export default function AdminPanel() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Kategori *
@@ -1133,11 +1143,25 @@ export default function AdminPanel() {
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Baskı Süresi (Dk)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newProdPrintDuration}
+                        onChange={(e) => setNewProdPrintDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Otomatik"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                      />
+                    </div>
                   </div>
 
                   {/* Promosyon Ayarları */}
                   <div className="bg-slate-100/60 p-3.5 rounded-2xl border border-slate-200/50 space-y-3">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">🏷️ Kampanya & Etiket Ayarları</span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">🏷️ Kampanya, Etiket & Malzeme Ayarları</span>
                     
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1170,17 +1194,37 @@ export default function AdminPanel() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                        Özel Etiket Yazısı (Opsiyonel)
-                      </label>
-                      <input
-                        type="text"
-                        value={newProdTagLabel}
-                        onChange={(e) => setNewProdTagLabel(e.target.value)}
-                        placeholder="Örn: YENİ, %20 İNDİRİM, ÇOK SATAN"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          Özel Etiket Yazısı (Opsiyonel)
+                        </label>
+                        <input
+                          type="text"
+                          value={newProdTagLabel}
+                          onChange={(e) => setNewProdTagLabel(e.target.value)}
+                          placeholder="Örn: YENİ, %20 İNDİRİM, ÇOK SATAN"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          Filament Malzemesi
+                        </label>
+                        <select
+                          value={newProdMaterial}
+                          onChange={(e) => setNewProdMaterial(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                        >
+                          <option value="PLA">PLA</option>
+                          <option value="PETG">PETG</option>
+                          <option value="ABS">ABS</option>
+                          <option value="ASA">ASA</option>
+                          <option value="TPU">TPU (Esnek)</option>
+                          <option value="Carbon Fiber">Carbon Fiber</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1247,7 +1291,7 @@ export default function AdminPanel() {
                             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full uppercase font-black">{prod.category}</span>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-3 gap-3">
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1">Satış Fiyatı (₺) *</label>
                               <input
@@ -1269,9 +1313,24 @@ export default function AdminPanel() {
                                 min="0"
                               />
                             </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Malzeme</label>
+                              <select
+                                value={editingMaterialValue}
+                                onChange={(e) => setEditingMaterialValue(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-600"
+                              >
+                                <option value="PLA">PLA</option>
+                                <option value="PETG">PETG</option>
+                                <option value="ABS">ABS</option>
+                                <option value="ASA">ASA</option>
+                                <option value="TPU">TPU (Esnek)</option>
+                                <option value="Carbon Fiber">Carbon Fiber</option>
+                              </select>
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-4 gap-3">
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1">Etiket Türü</label>
                               <select
@@ -1303,6 +1362,17 @@ export default function AdminPanel() {
                                 placeholder="Sınırsız"
                                 className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs"
                                 min="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Baskı Süresi (Dk)</label>
+                              <input
+                                type="number"
+                                value={editingPrintDurationValue}
+                                onChange={(e) => setEditingPrintDurationValue(e.target.value === '' ? '' : Number(e.target.value))}
+                                placeholder="Otomatik"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs"
+                                min="1"
                               />
                             </div>
                           </div>
@@ -1382,6 +1452,8 @@ export default function AdminPanel() {
                                   setEditingTagType(prod.tagType || 'none');
                                   setEditingTagLabel(prod.tagLabel || '');
                                   setEditingStockCountValue(prod.stockCount !== undefined && prod.stockCount !== null ? prod.stockCount : '');
+                                  setEditingPrintDurationValue(prod.printDuration !== undefined && prod.printDuration !== null ? prod.printDuration : '');
+                                  setEditingMaterialValue(prod.material || 'PLA');
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all"
                                 title="Düzenle"

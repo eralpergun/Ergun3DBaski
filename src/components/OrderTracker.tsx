@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2 } from 'lucide-react';
+import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar } from 'lucide-react';
 import { database } from '../lib/firebase';
 import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
 import { hashPasscodeSync } from '../utils/hash';
@@ -729,12 +729,13 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                             <span className="text-[10px] text-slate-400 block font-medium">Sipariş Kodu</span>
                             <span className="font-mono text-xs font-bold text-slate-850">{order.id}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className={`px-2.5 py-0.5 text-[11px] font-bold rounded-lg ${getStatusStyle(order.orderStatus)}`}>
                               {order.orderStatus}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {new Date(order.createdAt).toLocaleDateString('tr-TR')}
+                            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60 flex items-center gap-1">
+                              <Calendar className="h-3 w-3 text-slate-400" />
+                              {new Date(order.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {(order.orderStatus === 'Sipariş Alındı' || order.orderStatus === 'Ödeme Bekleniyor') && (
                               <button

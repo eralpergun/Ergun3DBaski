@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, FileCode, Check } from 'lucide-react';
+import { ShoppingCart, FileCode, Check, Clock, Layers } from 'lucide-react';
 import { Product } from '../types';
 
 interface ProductCardProps {
@@ -15,6 +15,17 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
     onAddToCart(product);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
+  };
+
+  const getFormattedDuration = (minutes?: number) => {
+    let totalMinutes = minutes;
+    if (totalMinutes === undefined || totalMinutes === null || totalMinutes <= 0) {
+      // Fallback calculation: base 15 minutes + 1.2 minutes per lira of price (e.g. 50 TL -> 75 mins, 100 TL -> 135 mins)
+      totalMinutes = Math.max(15, Math.round(15 + (product.price * 1.2)));
+    }
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    return hrs > 0 ? `${hrs} saat ${mins} dk` : `${mins} dk`;
   };
 
   // Modern placeholder imagery matching categories
@@ -110,8 +121,8 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
           </p>
         )}
 
-        {/* Stock status indicator */}
-        <div className="mt-3 flex items-center gap-2">
+        {/* Stock & Print Duration Status */}
+        <div className="mt-3.5 flex flex-wrap gap-2">
           {product.stockCount !== undefined && product.stockCount !== null ? (
             product.stockCount <= 0 ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
@@ -135,6 +146,16 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
               Stokta Var (Sipariş Üzerine)
             </span>
           )}
+
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+            <Clock className="h-3 w-3 text-slate-500" />
+            Baskı: ~{getFormattedDuration(product.printDuration)}
+          </span>
+
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-100">
+            <Layers className="h-3 w-3 text-sky-500" />
+            Malzeme: {product.material || 'PLA'}
+          </span>
         </div>
 
         <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-4">

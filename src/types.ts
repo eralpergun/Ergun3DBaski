@@ -7,6 +7,8 @@ export interface Product {
   tagType?: 'sale' | 'special' | 'none';
   tagLabel?: string;
   stockCount?: number;
+  printDuration?: number;
+  material?: string;
   description: string;
   imageUrl?: string;
   stlUrl?: string;
