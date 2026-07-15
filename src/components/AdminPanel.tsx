@@ -72,6 +72,7 @@ export default function AdminPanel() {
   const [newProdOriginalPrice, setNewProdOriginalPrice] = useState<number | ''>('');
   const [newProdTagType, setNewProdTagType] = useState<'none' | 'sale' | 'special'>('none');
   const [newProdTagLabel, setNewProdTagLabel] = useState('');
+  const [newProdStockCount, setNewProdStockCount] = useState<number | ''>('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdImgUrl, setNewProdImgUrl] = useState('');
   const [newProdStlName, setNewProdStlName] = useState('');
@@ -88,6 +89,7 @@ export default function AdminPanel() {
   const [editingOriginalPriceValue, setEditingOriginalPriceValue] = useState<number | ''>('');
   const [editingTagType, setEditingTagType] = useState<'none' | 'sale' | 'special'>('none');
   const [editingTagLabel, setEditingTagLabel] = useState('');
+  const [editingStockCountValue, setEditingStockCountValue] = useState<number | ''>('');
 
   // Inventory state
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -252,6 +254,7 @@ export default function AdminPanel() {
         originalPrice: newProdOriginalPrice ? Number(newProdOriginalPrice) : undefined,
         tagType: newProdTagType !== 'none' ? newProdTagType : undefined,
         tagLabel: newProdTagLabel.trim() || undefined,
+        stockCount: newProdStockCount !== '' ? Number(newProdStockCount) : undefined,
         description: newProdDesc,
         imageUrl: newProdImgUrl || undefined,
         stlFileName: newProdStlName || undefined,
@@ -267,6 +270,7 @@ export default function AdminPanel() {
       setNewProdOriginalPrice('');
       setNewProdTagType('none');
       setNewProdTagLabel('');
+      setNewProdStockCount('');
       setNewProdDesc('');
       setNewProdImgUrl('');
       setNewProdStlName('');
@@ -376,7 +380,8 @@ export default function AdminPanel() {
               price: Number(editingPriceValue),
               originalPrice: editingOriginalPriceValue ? Number(editingOriginalPriceValue) : null,
               tagType: editingTagType !== 'none' ? editingTagType : null,
-              tagLabel: editingTagLabel.trim() || null
+              tagLabel: editingTagLabel.trim() || null,
+              stockCount: editingStockCountValue !== '' ? Number(editingStockCountValue) : null
             });
             setEditingProductId(null);
           }
@@ -1084,7 +1089,7 @@ export default function AdminPanel() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                         Kategori *
@@ -1111,6 +1116,20 @@ export default function AdminPanel() {
                         min="1"
                         value={newProdPrice}
                         onChange={(e) => setNewProdPrice(Number(e.target.value))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Stok Miktarı
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newProdStockCount}
+                        onChange={(e) => setNewProdStockCount(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Sınırsız"
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                       />
                     </div>
@@ -1252,7 +1271,7 @@ export default function AdminPanel() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-3 gap-3">
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1">Etiket Türü</label>
                               <select
@@ -1273,6 +1292,17 @@ export default function AdminPanel() {
                                 onChange={(e) => setEditingTagLabel(e.target.value)}
                                 placeholder="Örn: YENİ, %25 İNDİRİM"
                                 className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Stok Miktarı</label>
+                              <input
+                                type="number"
+                                value={editingStockCountValue}
+                                onChange={(e) => setEditingStockCountValue(e.target.value === '' ? '' : Number(e.target.value))}
+                                placeholder="Sınırsız"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs"
+                                min="0"
                               />
                             </div>
                           </div>
@@ -1351,6 +1381,7 @@ export default function AdminPanel() {
                                   setEditingOriginalPriceValue(prod.originalPrice || '');
                                   setEditingTagType(prod.tagType || 'none');
                                   setEditingTagLabel(prod.tagLabel || '');
+                                  setEditingStockCountValue(prod.stockCount !== undefined && prod.stockCount !== null ? prod.stockCount : '');
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all"
                                 title="Düzenle"

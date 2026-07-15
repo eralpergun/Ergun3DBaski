@@ -110,6 +110,33 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
           </p>
         )}
 
+        {/* Stock status indicator */}
+        <div className="mt-3 flex items-center gap-2">
+          {product.stockCount !== undefined && product.stockCount !== null ? (
+            product.stockCount <= 0 ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                Stokta Yok (Tükendi)
+              </span>
+            ) : product.stockCount <= 5 ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                Sınırlı Stok ({product.stockCount} Adet)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Stokta Var ({product.stockCount} Adet)
+              </span>
+            )
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              Stokta Var (Sipariş Üzerine)
+            </span>
+          )}
+        </div>
+
         <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
           <div>
             <span className="text-xs text-slate-400 block font-medium">Baskı Fiyatı</span>
@@ -127,16 +154,23 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
 
           <button
             onClick={handleAdd}
+            disabled={product.stockCount !== undefined && product.stockCount !== null && product.stockCount <= 0}
             className={`px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all duration-300 ${
               added 
                 ? 'bg-emerald-500 text-white shadow-emerald-200 shadow-lg' 
-                : 'bg-slate-900 text-white hover:bg-slate-850 hover:shadow-slate-200/40 hover:shadow-lg'
+                : (product.stockCount !== undefined && product.stockCount !== null && product.stockCount <= 0)
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-900 text-white hover:bg-slate-850 hover:shadow-slate-200/40 hover:shadow-lg'
             }`}
           >
             {added ? (
               <>
                 <Check className="h-4 w-4" />
                 Eklendi
+              </>
+            ) : (product.stockCount !== undefined && product.stockCount !== null && product.stockCount <= 0) ? (
+              <>
+                Tükendi
               </>
             ) : (
               <>

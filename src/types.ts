@@ -6,6 +6,7 @@ export interface Product {
   originalPrice?: number;
   tagType?: 'sale' | 'special' | 'none';
   tagLabel?: string;
+  stockCount?: number;
   description: string;
   imageUrl?: string;
   stlUrl?: string;
