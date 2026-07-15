@@ -10,6 +10,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [added, setAdded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleAdd = () => {
     onAddToCart(product);
@@ -111,9 +112,18 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
         <h3 className="font-bold text-slate-900 text-lg group-hover:text-slate-700 transition-colors duration-200">
           {product.name}
         </h3>
-        <p className="text-sm text-slate-500 mt-2 line-clamp-2 flex-grow">
+        <p className={`text-sm text-slate-500 mt-2 flex-grow ${isExpanded ? '' : 'line-clamp-2'}`}>
           {product.description || 'Özel 3D tasarım ve hassas baskı detayları.'}
         </p>
+        {product.description && product.description.length > 80 && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-500 mt-1 cursor-pointer flex items-center gap-0.5 active:scale-95 transition-transform text-left"
+            type="button"
+          >
+            {isExpanded ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+          </button>
+        )}
 
         {product.stlFileName && (
           <p className="text-[11px] text-slate-400 mt-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100 truncate font-mono">
