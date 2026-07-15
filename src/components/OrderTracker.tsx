@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown } from 'lucide-react';
+import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown, User } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { database } from '../lib/firebase';
 import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
@@ -89,6 +89,90 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+
+  // Profile settings state
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [profileFullName, setProfileFullName] = useState('');
+  const [profileEmailOrPhone, setProfileEmailOrPhone] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const handleOpenProfileSettings = async () => {
+    if (!currentUser) return;
+
+    if (showProfileSettings) {
+      setShowProfileSettings(false);
+      return;
+    }
+
+    setShowProfileSettings(true);
+    setShowChangePassword(false);
+    setProfileError('');
+    setProfileSuccess('');
+
+    try {
+      setProfileLoading(true);
+      const userRef = ref(database, `users/${currentUser.id}`);
+      const snapshot = await get(userRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setProfileFullName(data.fullName || '');
+        setProfileEmailOrPhone(data.emailOrPhone || '');
+      } else {
+        setProfileFullName('');
+        setProfileEmailOrPhone(currentUser.emailOrPhone);
+      }
+    } catch (err) {
+      console.error(err);
+      setProfileError('Profil bilgileri yüklenirken bir hata oluştu.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    if (!profileFullName.trim() || !profileEmailOrPhone.trim()) {
+      setProfileError('Lütfen tüm alanları doldurun.');
+      setProfileSuccess('');
+      return;
+    }
+
+    setProfileLoading(true);
+    setProfileError('');
+    setProfileSuccess('');
+
+    try {
+      const userRef = ref(database, `users/${currentUser.id}`);
+      
+      // Update Realtime Database user node
+      await update(userRef, {
+        fullName: profileFullName.trim(),
+        emailOrPhone: profileEmailOrPhone.trim()
+      });
+
+      // Notify parent about the updated contact info to refresh standard filters
+      onUserLogin({
+        emailOrPhone: profileEmailOrPhone.trim(),
+        role: currentUser.role,
+        id: currentUser.id
+      });
+
+      setProfileSuccess('Profil bilgileriniz başarıyla güncellendi! ✓');
+      setTimeout(() => {
+        setShowProfileSettings(false);
+        setProfileSuccess('');
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setProfileError('Profil güncellenirken bir hata oluştu.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   // User orders state
   const [userOrders, setUserOrders] = useState<Order[]>([]);
@@ -1013,10 +1097,22 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    onClick={handleOpenProfileSettings}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-xl bg-white shadow-sm transition-all flex items-center gap-1 cursor-pointer border ${
+                      showProfileSettings
+                        ? 'text-indigo-600 border-indigo-200 bg-indigo-50/10'
+                        : 'text-slate-600 hover:text-slate-800 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Profil Ayarları
+                  </button>
+                  <button
                     onClick={() => {
                       setShowChangePassword(!showChangePassword);
                       setChangePasswordError('');
                       setChangePasswordSuccess('');
+                      setShowProfileSettings(false); // Close profile settings
                     }}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-xl bg-white shadow-sm transition-all flex items-center gap-1 cursor-pointer border ${
                       showChangePassword
@@ -1043,6 +1139,80 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                   </button>
                 </div>
               </div>
+
+              {showProfileSettings && (
+                <form onSubmit={handleUpdateProfile} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-200/60">
+                    <User className="h-4 w-4 text-indigo-600" />
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Profil Ayarları</h4>
+                  </div>
+                  
+                  {profileLoading && !profileFullName && !profileEmailOrPhone ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Ad Soyad</label>
+                        <input
+                          type="text"
+                          required
+                          value={profileFullName}
+                          onChange={(e) => setProfileFullName(e.target.value)}
+                          placeholder="Ad Soyad"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-slate-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">E-posta veya Telefon Numarası</label>
+                        <input
+                          type="text"
+                          required
+                          value={profileEmailOrPhone}
+                          onChange={(e) => setProfileEmailOrPhone(e.target.value)}
+                          placeholder="E-posta veya Telefon Numarası"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {profileError && (
+                    <p className="text-xs text-rose-500 bg-rose-50 px-3 py-2 rounded-xl border border-rose-100 flex items-center gap-1.5 font-medium">
+                      <ShieldAlert className="h-4 w-4 shrink-0" />
+                      {profileError}
+                    </p>
+                  )}
+
+                  {profileSuccess && (
+                    <p className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-100 font-semibold">
+                      {profileSuccess}
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileSettings(false);
+                        setProfileError('');
+                        setProfileSuccess('');
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={profileLoading}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    >
+                      {profileLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Kaydet'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {showChangePassword && (
                 <form onSubmit={handleChangePassword} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4 animate-fade-in">
