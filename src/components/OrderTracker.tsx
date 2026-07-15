@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar } from 'lucide-react';
+import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { database } from '../lib/firebase';
 import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
 import { hashPasscodeSync } from '../utils/hash';
@@ -49,6 +50,21 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
       totalWeight: totalWeightGrams,
       text: estimationText
     };
+  };
+
+  // Aktif siparişler için bugünün tarihine +3 gün ekleyerek Tahmini Teslimat hesaplama
+  const getEstimatedDeliveryDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 3);
+    return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const isActiveOrder = (status: OrderStatus) => {
+    return status === 'Sipariş Alındı' || 
+           status === 'Ödeme Bekleniyor' || 
+           status === 'Baskıda' || 
+           status === 'Hazır' || 
+           status === 'Kargolandı';
   };
 
   // Search state
@@ -342,6 +358,394 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
     }
   };
 
+  const safeText = (text: string) => {
+    if (!text) return '';
+    return text
+      .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+      .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+      .replace(/ı/g, 'i').replace(/İ/g, 'I')
+      .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+      .replace(/ş/g, 's').replace(/Ş/g, 'S')
+      .replace(/ü/g, 'u').replace(/Ü/g, 'U');
+  };
+
+  const handleDownloadSingleOrderPDF = (order: Order) => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Dark slate top banner
+    doc.setFillColor(15, 23, 42); // slate-900
+    doc.rect(0, 0, 210, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text(safeText('3D PRINTER KARABUK'), 15, 18);
+    
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(203, 213, 225); // slate-300
+    doc.text(safeText('Genc ve Yenilikci 3D Baski Hizmetleri'), 15, 24);
+    doc.text(safeText('Karabuk / Turkiye'), 15, 29);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text(safeText('SIPARIS DETAYI / INVOICE'), 130, 22);
+
+    // Default dark for general text
+    doc.setTextColor(15, 23, 42);
+
+    let y = 50;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(safeText('Musteri Bilgileri'), 15, y);
+    doc.text(safeText('Siparis Bilgileri'), 115, y);
+
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.setLineWidth(0.5);
+    doc.line(15, y + 2, 200, y + 2);
+
+    y += 8;
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Ad Soyad:'), 15, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(order.customerName), 40, y);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Siparis Kodu:'), 115, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(79, 70, 229); // Indigo Accent
+    doc.text(safeText(order.id), 145, y);
+
+    y += 6;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Iletisim:'), 15, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(order.customerContact), 40, y);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Tarih:'), 115, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(new Date(order.createdAt).toLocaleDateString('tr-TR')), 145, y);
+
+    y += 6;
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Adres:'), 15, y);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    const cityDist = `${order.district || ''} / ${order.city || ''}`;
+    doc.text(safeText(cityDist), 40, y);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Siparis Durumu:'), 115, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(order.orderStatus), 145, y);
+
+    y += 6;
+    if (order.address) {
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(safeText('Detayli Adres:'), 15, y);
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      const splitAddress = doc.splitTextToSize(safeText(order.address), 65);
+      doc.text(splitAddress, 40, y);
+      y += (splitAddress.length * 4) + 2;
+    } else {
+      y += 6;
+    }
+
+    // Table header
+    doc.setFillColor(241, 245, 249);
+    doc.rect(15, y, 185, 8, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(safeText('Urun / Dosya Adi'), 18, y + 5);
+    doc.text(safeText('Tip'), 95, y + 5);
+    doc.text(safeText('Baski Detayi'), 120, y + 5);
+    doc.text(safeText('Adet'), 160, y + 5);
+    doc.text(safeText('Tutar'), 182, y + 5);
+
+    y += 8;
+
+    // Render items
+    doc.setFont('Helvetica', 'normal');
+    order.items.forEach((item, index) => {
+      if (index % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 185, 10, 'F');
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+
+      let itemName = '';
+      let itemType = '';
+      let itemDetail = '';
+
+      if (item.type === 'custom') {
+        itemName = item.customPrint?.fileName || 'Ozel Model';
+        itemType = 'Ozel Baski';
+        const weight = item.customPrint?.estimatedWeight ? `${item.customPrint.estimatedWeight}g` : '';
+        const colors = item.customPrint?.selectedColors?.join(', ') || '';
+        itemDetail = `${weight} ${colors ? '| ' + colors : ''}`;
+      } else {
+        itemName = item.product?.name || 'Katalog Urunu';
+        itemType = 'Katalog';
+        itemDetail = safeText(item.product?.material || 'PLA');
+      }
+
+      const splitName = doc.splitTextToSize(safeText(itemName), 75);
+      doc.text(splitName, 18, y + 6);
+      doc.text(safeText(itemType), 95, y + 6);
+      doc.text(safeText(itemDetail), 120, y + 6);
+      doc.text(item.quantity.toString(), 162, y + 6);
+      doc.text(`TL ${item.price * item.quantity}`, 182, y + 6);
+
+      y += 10;
+    });
+
+    y += 4;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, y, 200, y);
+
+    y += 6;
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Odeme Durumu:'), 15, y);
+    doc.setFont('Helvetica', 'bold');
+    if (order.paymentStatus === 'Onaylandı') {
+      doc.setTextColor(16, 185, 129);
+    } else {
+      doc.setTextColor(245, 158, 11);
+    }
+    doc.text(safeText(order.paymentStatus === 'Onaylandı' ? 'Odeme Alindi' : 'Onay Bekliyor'), 45, y);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Kargo Ucreti:'), 125, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const shipFeeText = order.shippingFee === undefined || order.shippingFee === 0 ? 'Ucretsiz' : `TL ${order.shippingFee}`;
+    doc.text(safeText(shipFeeText), 170, y);
+
+    y += 6;
+    const estDetails = calculateOrderWeightAndEst(order.items);
+    if (estDetails.totalWeight > 0) {
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(safeText('Toplam Agirlik:'), 15, y);
+      doc.setFont('Helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(safeText(`${estDetails.totalWeight}g`), 45, y);
+    }
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(79, 70, 229);
+    doc.text(safeText('TOPLAM TUTAR:'), 125, y);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`TL ${order.totalAmount.toLocaleString('tr-TR')}`, 170, y);
+
+    if (isActiveOrder(order.orderStatus)) {
+      y += 6;
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(safeText('Tahmini Teslimat:'), 15, y);
+      doc.setFont('Helvetica', 'bold');
+      doc.setTextColor(245, 158, 11);
+      doc.text(safeText(getEstimatedDeliveryDate()), 45, y);
+    }
+
+    if (order.notes) {
+      y += 10;
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(safeText('Musteri Notu:'), 15, y);
+      doc.setFont('Helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      const splitNotes = doc.splitTextToSize(safeText(order.notes), 170);
+      doc.text(splitNotes, 15, y + 4.5);
+      y += (splitNotes.length * 4) + 6;
+    }
+
+    const footerY = 275;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, footerY - 5, 200, footerY - 5);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(safeText('Bu belge 3D Printer Karabuk uzerinden otomatik olarak olusturulmustur.'), 15, footerY);
+    doc.text(safeText('Karabuk 3D Yazici Cozumleri - eralpergun06@gmail.com'), 15, footerY + 4);
+
+    doc.save(`siparis-${order.id}.pdf`);
+  };
+
+  const handleDownloadAllOrdersPDF = () => {
+    if (userOrders.length === 0) return;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text(safeText('3D PRINTER KARABUK'), 15, 18);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(203, 213, 225);
+    doc.text(safeText('Genc ve Yenilikci 3D Baski Hizmetleri'), 15, 24);
+    doc.text(safeText('Gecmis Siparislerim Ozeti'), 15, 29);
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    const countText = `TOPLAM ${userOrders.length} SIPARIS`;
+    doc.text(safeText(countText), 145, 22);
+
+    doc.setTextColor(15, 23, 42);
+
+    let y = 50;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(safeText('Musteri Bilgileri'), 15, y);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(15, y + 2, 200, y + 2);
+
+    y += 8;
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Musteri:'), 15, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(currentUser?.emailOrPhone || ''), 35, y);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(safeText('Rapor Tarihi:'), 115, y);
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(safeText(new Date().toLocaleDateString('tr-TR')), 145, y);
+
+    y += 12;
+
+    // Table header
+    doc.setFillColor(241, 245, 249);
+    doc.rect(15, y, 185, 8, 'F');
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(safeText('Siparis Kodu'), 18, y + 5);
+    doc.text(safeText('Tarih'), 50, y + 5);
+    doc.text(safeText('Icerik'), 80, y + 5);
+    doc.text(safeText('Durum'), 145, y + 5);
+    doc.text(safeText('Tutar'), 182, y + 5);
+
+    y += 8;
+
+    let grandTotal = 0;
+
+    userOrders.forEach((order, index) => {
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+        doc.setFillColor(241, 245, 249);
+        doc.rect(15, y, 185, 8, 'F');
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105);
+        doc.text(safeText('Siparis Kodu'), 18, y + 5);
+        doc.text(safeText('Tarih'), 50, y + 5);
+        doc.text(safeText('Icerik'), 80, y + 5);
+        doc.text(safeText('Durum'), 145, y + 5);
+        doc.text(safeText('Tutar'), 182, y + 5);
+        y += 8;
+      }
+
+      if (index % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(15, y, 185, 12, 'F');
+      }
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.text(safeText(order.id), 18, y + 7);
+      doc.setFont('Helvetica', 'normal');
+
+      doc.text(safeText(new Date(order.createdAt).toLocaleDateString('tr-TR')), 50, y + 7);
+
+      const itemsSummary = order.items.map(item => {
+        const name = item.type === 'custom' ? (item.customPrint?.fileName || 'Ozel Baski') : (item.product?.name || 'Katalog');
+        return `${name} (x${item.quantity})`;
+      }).join(', ');
+      const splitSummary = doc.splitTextToSize(safeText(itemsSummary), 60);
+      doc.text(splitSummary, 80, y + 5.5);
+
+      doc.text(safeText(order.orderStatus), 145, y + 7);
+
+      doc.text(`TL ${order.totalAmount}`, 182, y + 7);
+
+      grandTotal += order.totalAmount;
+      y += 12;
+    });
+
+    y += 5;
+    if (y > 260) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, y, 200, y);
+
+    y += 8;
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(79, 70, 229);
+    doc.text(safeText('GENEL TOPLAM HARCAMA:'), 115, y);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`TL ${grandTotal.toLocaleString('tr-TR')}`, 175, y);
+
+    const footerY = 275;
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(safeText('Bu belge 3D Printer Karabuk uzerinden otomatik olarak olusturulmustur.'), 15, footerY);
+    doc.text(safeText('Gecmis Siparisler Raporu - eralpergun06@gmail.com'), 15, footerY + 4);
+
+    doc.save(`gecmis-siparislerim.pdf`);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Upper header section */}
@@ -444,6 +848,23 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                   </div>
                 );
               })()}
+
+              {isActiveOrder(searchedOrder.orderStatus) && (
+                <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
+                      <Clock className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-800/80 uppercase tracking-wider block">Tahmini Teslimat</span>
+                      <span className="text-xs font-black text-amber-950">Karabük ve Tüm Şehirler</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-amber-700 bg-white px-2.5 py-1 rounded-xl border border-amber-200/40 shadow-xs">
+                    {getEstimatedDeliveryDate()}
+                  </span>
+                </div>
+              )}
 
               {searchedOrder.city && searchedOrder.district && (
                 <div className="pt-3 border-t border-slate-200/60 text-xs space-y-1">
@@ -704,10 +1125,22 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
 
               {/* Order List */}
               <div className="space-y-4">
-                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Package className="h-4.5 w-4.5 text-slate-900" />
-                  Siparişleriniz ({userOrders.length})
-                </h4>
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Package className="h-4.5 w-4.5 text-slate-900" />
+                    Siparişleriniz ({userOrders.length})
+                  </h4>
+                  {userOrders.length > 0 && (
+                    <button
+                      onClick={handleDownloadAllOrdersPDF}
+                      className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+                      title="Tüm sipariş geçmişinizi tek bir PDF olarak indirin"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      Tüm Geçmişi İndir
+                    </button>
+                  )}
+                </div>
 
                 {ordersLoading ? (
                   <div className="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -737,6 +1170,13 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                               <Calendar className="h-3 w-3 text-slate-400" />
                               {new Date(order.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
+                            <button
+                              onClick={() => handleDownloadSingleOrderPDF(order)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer ml-1"
+                              title="Sipariş Detaylarını PDF Olarak İndir"
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                            </button>
                             {(order.orderStatus === 'Sipariş Alındı' || order.orderStatus === 'Ödeme Bekleniyor') && (
                               <button
                                 onClick={() => handleDeleteOrder(order.id)}
@@ -805,6 +1245,12 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                               <span className="font-bold text-slate-700">
                                 {order.shippingFee === 0 ? 'Ücretsiz' : `₺${order.shippingFee}`}
                               </span>
+                            </div>
+                          )}
+                          {isActiveOrder(order.orderStatus) && (
+                            <div className="flex justify-between items-center text-[10px] border-t border-slate-100 pt-1.5 mt-1 bg-amber-50/50 hover:bg-amber-100/50 p-2 rounded-lg border border-amber-200/40 transition-colors">
+                              <span className="font-bold text-amber-850 flex items-center gap-1">🚚 Tahmini Teslimat:</span>
+                              <span className="font-extrabold text-amber-700 bg-white px-2 py-0.5 rounded border border-amber-200/30 shadow-xs">{getEstimatedDeliveryDate()}</span>
                             </div>
                           )}
                         </div>
