@@ -3,6 +3,9 @@ export interface Product {
   name: string;
   category: "Fidgets" | "Accessories" | "Toys" | "Keychains";
   price: number;
+  originalPrice?: number;
+  tagType?: 'sale' | 'special' | 'none';
+  tagLabel?: string;
   description: string;
   imageUrl?: string;
   stlUrl?: string;
@@ -38,6 +41,10 @@ export interface Order {
   paymentStatus: "Bekliyor" | "Onaylandı" | "Reddedildi";
   orderStatus: OrderStatus;
   senderName: string; // Havale/EFT sender name
+  city?: string;
+  district?: string;
+  address?: string;
+  shippingFee?: number;
   createdAt: number;
   notes?: string;
 }
@@ -77,5 +84,17 @@ export interface SupportChat {
   liveMode: boolean; // false = handled by bot, true = connected to admin
   status: 'active' | 'closed';
   messages?: Record<string, SupportMessage>;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  type: 'filament' | 'hammadde';
+  color?: string;
+  quantity: number;
+  unit: 'g' | 'kg' | 'adet';
+  criticalLevel: number;
+  notes?: string;
+  updatedAt: number;
 }
 

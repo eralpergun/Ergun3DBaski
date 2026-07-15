@@ -12,6 +12,45 @@ interface OrderTrackerProps {
 }
 
 export default function OrderTracker({ onUserLogin, currentUser, onLogout }: OrderTrackerProps) {
+  // Ortalama teslimat/üretim süresi tahmini hesaplama
+  const calculateOrderWeightAndEst = (items: any[]) => {
+    let totalWeightGrams = 0;
+    if (!items) return { totalWeight: 0, text: '' };
+    items.forEach(item => {
+      if (item.type === 'custom') {
+        totalWeightGrams += (item.customPrint?.estimatedWeight || 0) * item.quantity;
+      } else {
+        const category = item.product?.category;
+        let itemWeight = 25;
+        if (category === 'Keychains') itemWeight = 15;
+        else if (category === 'Fidgets') itemWeight = 25;
+        else if (category === 'Accessories') itemWeight = 40;
+        else if (category === 'Toys') itemWeight = 60;
+        totalWeightGrams += itemWeight * item.quantity;
+      }
+    });
+
+    const totalMinutes = 60 + (totalWeightGrams * 4);
+    const hours = Math.ceil(totalMinutes / 60);
+
+    let estimationText = '';
+    if (totalWeightGrams === 0) {
+      return { totalWeight: 0, text: '0 dk' };
+    }
+
+    if (hours < 24) {
+      estimationText = `~${hours} Saat (Hızlı Hazırlık)`;
+    } else {
+      const days = Math.ceil(hours / 24);
+      estimationText = `~${days} Gün (${hours} Saat)`;
+    }
+
+    return {
+      totalWeight: totalWeightGrams,
+      text: estimationText
+    };
+  };
+
   // Search state
   const [orderIdSearch, setOrderIdSearch] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<Order | null>(null);
@@ -388,12 +427,43 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                 ))}
               </div>
 
+              {(() => {
+                const estDetails = calculateOrderWeightAndEst(searchedOrder.items);
+                if (estDetails.totalWeight === 0) return null;
+                return (
+                  <div className="pt-3 border-t border-slate-200/60 text-xs space-y-1 bg-indigo-50/40 p-3 rounded-xl border border-indigo-100/50">
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">⚖️ Üretim & Teslimat Tahmini</span>
+                    <div className="flex justify-between items-center text-[11px] text-slate-600 mt-1">
+                      <span>Toplam Ağırlık:</span>
+                      <span className="font-bold text-slate-800">{estDetails.totalWeight} gram</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-slate-600">
+                      <span>Tahmini Hazırlanma:</span>
+                      <span className="font-extrabold text-indigo-700">{estDetails.text}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {searchedOrder.city && searchedOrder.district && (
+                <div className="pt-3 border-t border-slate-200/60 text-xs space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">Teslimat Adresi</span>
+                  <p className="text-slate-800 font-semibold text-[11px]">{searchedOrder.city} / {searchedOrder.district}</p>
+                  <p className="text-slate-500 text-[10px] leading-relaxed break-words">{searchedOrder.address}</p>
+                </div>
+              )}
+
               <div className="pt-3 border-t border-slate-200/60 flex justify-between items-center text-xs">
                 <div>
                   <span className="text-slate-400 block font-medium">Ödeme Durumu</span>
                   <span className={`font-semibold ${searchedOrder.paymentStatus === 'Onaylandı' ? 'text-emerald-600' : 'text-amber-500'}`}>
                     {searchedOrder.paymentStatus === 'Onaylandı' ? 'Ödendi' : 'Ödeme Bekleniyor'}
                   </span>
+                  {searchedOrder.shippingFee !== undefined && (
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Kargo: {searchedOrder.shippingFee === 0 ? 'Ücretsiz' : `₺${searchedOrder.shippingFee}`}
+                    </span>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className="text-slate-400 block font-medium">Toplam</span>
@@ -710,6 +780,34 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                         </div>
 
                         {/* Summary & Price */}
+                        <div className="bg-white/80 border border-slate-100 rounded-xl p-2.5 my-3 text-[11px] text-slate-600 space-y-1.5">
+                          {(() => {
+                            const estDetails = calculateOrderWeightAndEst(order.items);
+                            if (estDetails.totalWeight === 0) return null;
+                            return (
+                              <div className="pb-1.5 border-b border-slate-100 flex justify-between items-center text-[10px] text-slate-500">
+                                <span className="flex items-center gap-1">⚖️ <strong className="text-slate-600">Sipariş Ağırlığı:</strong> {estDetails.totalWeight}g</span>
+                                <span className="font-bold text-indigo-650">⏱️ Hazırlanma: {estDetails.text}</span>
+                              </div>
+                            );
+                          })()}
+                          {order.city && order.district && (
+                            <div>
+                              <span className="font-bold text-slate-400 text-[9px] uppercase tracking-wider block">Teslimat Adresi</span>
+                              <span className="font-semibold text-slate-800">{order.city} / {order.district}</span>
+                              <span className="block text-[10px] text-slate-500 mt-0.5 leading-relaxed break-words">{order.address}</span>
+                            </div>
+                          )}
+                          {order.shippingFee !== undefined && (
+                            <div className="flex justify-between items-center text-[10px] border-t border-slate-100 pt-1.5 mt-1 text-slate-500">
+                              <span>Kargo Ücreti:</span>
+                              <span className="font-bold text-slate-700">
+                                {order.shippingFee === 0 ? 'Ücretsiz' : `₺${order.shippingFee}`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs">
                           <div>
                             <span className="text-slate-400 block font-medium">Ödeme:</span>

@@ -35,8 +35,34 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
 
   const imageSrc = product.imageUrl || getPlaceholderImage(product.category);
 
+  // Determine if product is on sale or is special
+  const isSale = product.tagType === 'sale' || (product.originalPrice && product.originalPrice > product.price);
+  const isSpecial = product.tagType === 'special';
+  const hasTag = isSale || isSpecial || !!product.tagLabel;
+
+  // Determine markdown discount percentage
+  let discountPercentage = 0;
+  if (product.originalPrice && product.originalPrice > product.price) {
+    discountPercentage = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  }
+
+  // Tag style and label
+  let tagColorClass = 'bg-rose-600 text-white shadow-rose-200/50';
+  let tagText = 'İndirim';
+
+  if (isSale) {
+    tagColorClass = 'bg-rose-600 text-white shadow-rose-200/50';
+    tagText = product.tagLabel || (discountPercentage > 0 ? `%${discountPercentage} İndirim` : 'İndirim');
+  } else if (isSpecial) {
+    tagColorClass = 'bg-indigo-600 text-white shadow-indigo-200/50';
+    tagText = product.tagLabel || 'Özel Ürün';
+  } else if (product.tagLabel) {
+    tagColorClass = 'bg-amber-500 text-slate-950 shadow-amber-200/50';
+    tagText = product.tagLabel;
+  }
+
   return (
-    <div className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-md hover:shadow-xl hover:border-slate-200/80 transition-all duration-300 flex flex-col h-full">
+    <div className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-md hover:shadow-xl hover:border-slate-200/80 transition-all duration-300 flex flex-col h-full relative">
       {/* Visual aspect */}
       <div className="relative aspect-square overflow-hidden bg-slate-50">
         <img 
@@ -45,14 +71,22 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute top-4 left-4">
+        <div className="absolute top-4 left-4 z-10">
           <span className="px-3 py-1 text-xs font-semibold rounded-full bg-white/95 text-slate-800 shadow-sm backdrop-blur-md border border-slate-100 uppercase tracking-wide">
             {product.category}
           </span>
         </div>
+
+        {hasTag && (
+          <div className="absolute top-4 right-4 z-10">
+            <span className={`px-2.5 py-1 text-[10px] font-black rounded-full shadow-md tracking-wider uppercase border border-white/20 flex items-center justify-center ${tagColorClass}`}>
+              {tagText}
+            </span>
+          </div>
+        )}
         
         {product.stlFileName && (
-          <div className="absolute bottom-4 left-4">
+          <div className="absolute bottom-4 left-4 z-10">
             <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-900/80 text-slate-300 shadow-sm backdrop-blur-sm border border-slate-700/50">
               <FileCode className="h-3 w-3" />
               STL Hazır
@@ -79,9 +113,16 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
         <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
           <div>
             <span className="text-xs text-slate-400 block font-medium">Baskı Fiyatı</span>
-            <span className="text-xl font-extrabold text-slate-900">
-              ₺{product.price.toLocaleString('tr-TR')}
-            </span>
+            <div className="flex items-baseline gap-1.5">
+              {product.originalPrice && product.originalPrice > product.price && (
+                <span className="text-xs font-semibold text-slate-400 line-through">
+                  ₺{product.originalPrice.toLocaleString('tr-TR')}
+                </span>
+              )}
+              <span className="text-xl font-extrabold text-slate-900">
+                ₺{product.price.toLocaleString('tr-TR')}
+              </span>
+            </div>
           </div>
 
           <button

@@ -28,13 +28,147 @@ export default function Cart({
   const [customerName, setCustomerName] = useState('');
   const [customerContact, setCustomerContact] = useState('');
   const [senderName, setSenderName] = useState('');
+  const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
+  const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedIban, setCopiedIban] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState('');
 
+  // Success summary details
+  const [successTotalAmount, setSuccessTotalAmount] = useState<number>(0);
+  const [successDiscountAmount, setSuccessDiscountAmount] = useState<number>(0);
+  const [successOriginalAmount, setSuccessOriginalAmount] = useState<number>(0);
+  const [successShippingFee, setSuccessShippingFee] = useState<number>(0);
+  const [successWeight, setSuccessWeight] = useState<number>(0);
+  const [successEstText, setSuccessEstText] = useState<string>('');
+
+  // Coupon states
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
   const totalAmount = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+  // Discount calculations
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'percentage') {
+      discountAmount = (totalAmount * appliedCoupon.value) / 100;
+    } else {
+      discountAmount = appliedCoupon.value;
+    }
+  }
+  discountAmount = Math.min(totalAmount, discountAmount);
+  const finalAmount = Math.max(0, totalAmount - discountAmount);
+  const shippingFee = (cartItems.length > 0 && finalAmount < 1000) ? 230 : 0;
+  const grandTotal = finalAmount + shippingFee;
+
+  // Ortalama teslimat/üretim süresi tahmini hesaplama
+  const calculateDeliveryEstimation = (items: OrderItem[]) => {
+    let totalWeightGrams = 0;
+    items.forEach(item => {
+      if (item.type === 'custom') {
+        totalWeightGrams += (item.customPrint?.estimatedWeight || 0) * item.quantity;
+      } else {
+        const category = item.product?.category;
+        let itemWeight = 25;
+        if (category === 'Keychains') itemWeight = 15;
+        else if (category === 'Fidgets') itemWeight = 25;
+        else if (category === 'Accessories') itemWeight = 40;
+        else if (category === 'Toys') itemWeight = 60;
+        totalWeightGrams += itemWeight * item.quantity;
+      }
+    });
+
+    const totalMinutes = 60 + (totalWeightGrams * 4);
+    const hours = Math.ceil(totalMinutes / 60);
+
+    let estimationText = '';
+    if (totalWeightGrams === 0) {
+      return { totalWeight: 0, text: '0 dk' };
+    }
+
+    if (hours < 24) {
+      estimationText = `~${hours} Saat (Hızlı Gönderi)`;
+    } else {
+      const days = Math.ceil(hours / 24);
+      estimationText = `~${days} Gün (${hours} Saat)`;
+    }
+
+    return {
+      totalWeight: totalWeightGrams,
+      text: estimationText
+    };
+  };
+
+  const est = calculateDeliveryEstimation(cartItems);
+
+  const handleApplyCoupon = async () => {
+    setCouponError('');
+    setCouponSuccess('');
+    const code = couponCodeInput.trim().toUpperCase();
+    if (!code) {
+      setCouponError('Lütfen bir kupon kodu girin.');
+      return;
+    }
+
+    try {
+      const { database } = await import('../lib/firebase');
+      const { ref, get } = await import('firebase/database');
+      
+      const couponsRef = ref(database, 'coupons');
+      const snapshot = await get(couponsRef);
+      
+      if (!snapshot.exists()) {
+        setCouponError('Geçersiz kupon kodu.');
+        return;
+      }
+
+      const allCoupons = snapshot.val();
+      const matchedCouponKey = Object.keys(allCoupons).find(
+        key => allCoupons[key].code === code
+      );
+
+      if (!matchedCouponKey) {
+        setCouponError('Geçersiz veya süresi dolmuş kupon kodu.');
+        return;
+      }
+
+      const coupon = { id: matchedCouponKey, ...allCoupons[matchedCouponKey] };
+
+      if (!coupon.active) {
+        setCouponError('Bu kupon kodu şu an aktif değil.');
+        return;
+      }
+
+      if (coupon.usageCount >= coupon.maxUsage) {
+        setCouponError('Bu kuponun kullanım sınırı dolmuştur.');
+        return;
+      }
+
+      if (totalAmount < coupon.minOrderValue) {
+        setCouponError(`Bu kuponu kullanmak için minimum sepet tutarı ₺${coupon.minOrderValue} olmalıdır.`);
+        return;
+      }
+
+      setAppliedCoupon(coupon);
+      setCouponSuccess(`Kupon uygulandı! ${coupon.type === 'percentage' ? `%${coupon.value} indirim` : `₺${coupon.value} indirim`} kazandınız.`);
+    } catch (err) {
+      console.error('Coupon query failed:', err);
+      setCouponError('Kupon sorgulanırken bir hata oluştu.');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCodeInput('');
+    setCouponSuccess('');
+    setCouponError('');
+  };
 
   const handleCopyIban = () => {
     navigator.clipboard.writeText(bankDetails.iban);
@@ -49,7 +183,7 @@ export default function Cart({
       return;
     }
     if (cartItems.length === 0) return;
-    if (!customerName || !customerContact || !senderName) {
+    if (!customerName || !customerContact || !senderName || !city || !district || !address) {
       alert('Lütfen tüm zorunlu alanları doldurun.');
       return;
     }
@@ -57,9 +191,12 @@ export default function Cart({
     setIsSubmitting(true);
 
     try {
+      const shippingFee = finalAmount >= 1000 ? 0 : 230;
+      const grandTotalAmount = finalAmount + shippingFee;
+
       // Dynamic import to prevent dependency issues if database is used in multiple components
       const { database } = await import('../lib/firebase');
-      const { ref, push, set } = await import('firebase/database');
+      const { ref, push, set, update } = await import('firebase/database');
 
       const ordersRef = ref(database, 'orders');
       const newOrderRef = push(ordersRef);
@@ -71,6 +208,10 @@ export default function Cart({
         customerName,
         customerContact,
         senderName,
+        city,
+        district,
+        address,
+        shippingFee,
         items: cartItems.map(item => ({
           type: item.type,
           price: item.price,
@@ -78,7 +219,15 @@ export default function Cart({
           product: item.product || null,
           customPrint: item.customPrint || null
         })),
-        totalAmount,
+        totalAmount: grandTotalAmount, // discounted amount + shippingFee
+        originalAmount: totalAmount,
+        discountAmount,
+        appliedCoupon: appliedCoupon ? {
+          id: appliedCoupon.id,
+          code: appliedCoupon.code,
+          type: appliedCoupon.type,
+          value: appliedCoupon.value
+        } : null,
         paymentStatus: 'Bekliyor',
         orderStatus: 'Sipariş Alındı',
         createdAt: Date.now(),
@@ -87,6 +236,22 @@ export default function Cart({
 
       await set(newOrderRef, orderData);
       
+      // Increment coupon usage count
+      if (appliedCoupon) {
+        const couponRef = ref(database, `coupons/${appliedCoupon.id}`);
+        await update(couponRef, {
+          usageCount: (appliedCoupon.usageCount || 0) + 1
+        });
+      }
+
+      const estDetails = calculateDeliveryEstimation(cartItems);
+      setSuccessWeight(estDetails.totalWeight);
+      setSuccessEstText(estDetails.text);
+
+      setSuccessTotalAmount(grandTotalAmount);
+      setSuccessDiscountAmount(discountAmount);
+      setSuccessOriginalAmount(totalAmount);
+      setSuccessShippingFee(shippingFee);
       setCreatedOrderId(generatedId);
       setShowSuccess(true);
       onClearCart();
@@ -109,14 +274,40 @@ export default function Cart({
           Siparişiniz başarıyla kaydedilmiştir. Havale/EFT ödemeniz onaylandıktan sonra baskı işlemlerine hemen başlayacağız.
         </p>
 
-        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-6 text-left">
-          <div className="flex justify-between border-b border-slate-200/60 pb-3 mb-3">
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-6 text-left space-y-2.5">
+          <div className="flex justify-between border-b border-slate-200/60 pb-2.5">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sipariş Kodu</span>
             <span className="text-sm font-extrabold text-slate-900 font-mono">{createdOrderId}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ödenecek Tutar</span>
-            <span className="text-sm font-extrabold text-slate-900">₺{totalAmount.toLocaleString('tr-TR')}</span>
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>Ürünler Toplamı</span>
+            <span>₺{successOriginalAmount.toLocaleString('tr-TR')}</span>
+          </div>
+          {successDiscountAmount > 0 && (
+            <div className="flex justify-between text-xs text-emerald-600 font-semibold">
+              <span>Kupon İndirimi</span>
+              <span>-₺{successDiscountAmount.toLocaleString('tr-TR')}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-xs text-slate-500">
+            <span>Kargo Ücreti</span>
+            <span>
+              {successShippingFee === 0 ? (
+                <span className="text-emerald-600 font-bold">Ücretsiz</span>
+              ) : (
+                `₺${successShippingFee.toLocaleString('tr-TR')}`
+              )}
+            </span>
+          </div>
+          {successWeight > 0 && (
+            <div className="flex justify-between items-center text-xs text-indigo-600 bg-indigo-50/40 p-2.5 rounded-xl border border-indigo-100/50">
+              <span className="font-semibold flex items-center gap-1">⚖️ Sipariş Ağırlığı & Tahmini Hazırlık</span>
+              <span className="font-bold">{successWeight}g ({successEstText})</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-dashed border-slate-200 pt-2.5">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Toplam Ödenecek Tutar</span>
+            <span className="text-sm font-extrabold text-slate-900">₺{successTotalAmount.toLocaleString('tr-TR')}</span>
           </div>
         </div>
 
@@ -247,9 +438,94 @@ export default function Cart({
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-400">Genel Toplam</span>
-          <span className="text-2xl font-black text-slate-900">₺{totalAmount.toLocaleString('tr-TR')}</span>
+        {/* Coupon Input Area */}
+        {cartItems.length > 0 && (
+          <div className="mt-6 p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100/50 space-y-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              🎁 İndirim Kuponu / Hediye Kartı
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="KUPON KODU GİRİN"
+                value={couponCodeInput}
+                onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                disabled={!!appliedCoupon}
+                className="flex-1 px-3 py-2 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs font-bold uppercase outline-none text-slate-800 transition-all disabled:opacity-60"
+              />
+              {appliedCoupon ? (
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold border border-rose-100 transition-all cursor-pointer"
+                >
+                  Kaldır
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                >
+                  Uygula
+                </button>
+              )}
+            </div>
+            {couponError && <p className="text-[10px] text-rose-600 font-bold">⚠️ {couponError}</p>}
+            {couponSuccess && <p className="text-[10px] text-emerald-600 font-bold">✓ {couponSuccess}</p>}
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-slate-100 space-y-2">
+          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+            <span>Ürünler Toplamı</span>
+            <span>₺{totalAmount.toLocaleString('tr-TR')}</span>
+          </div>
+          {appliedCoupon && (
+            <div className="flex items-center justify-between text-xs font-semibold text-emerald-600">
+              <span>Kupon İndirimi ({appliedCoupon.code})</span>
+              <span>-₺{discountAmount.toLocaleString('tr-TR')}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+            <span>Kargo Ücreti</span>
+            <span>
+              {shippingFee === 0 ? (
+                <span className="text-emerald-600 font-bold">Ücretsiz</span>
+              ) : (
+                `₺${shippingFee.toLocaleString('tr-TR')}`
+              )}
+            </span>
+          </div>
+          {shippingFee > 0 && (
+            <p className="text-[10px] text-indigo-600 font-medium">
+              🎁 <strong>₺{(1000 - finalAmount).toLocaleString('tr-TR')}</strong> daha ekleyin, kargo ücretsiz olsun!
+            </p>
+          )}
+          {est.totalWeight > 0 && (
+            <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-center justify-between gap-3 text-xs text-indigo-900 shadow-sm animate-fade-in my-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚖️</span>
+                <div>
+                  <span className="font-bold text-slate-500 block text-[9px] uppercase tracking-wider">Toplam Ağırlık</span>
+                  <span className="font-extrabold text-indigo-700">{est.totalWeight} gram</span>
+                </div>
+              </div>
+              <div className="h-6 w-px bg-indigo-100" />
+              <div className="flex items-center gap-2 text-right">
+                <div>
+                  <span className="font-bold text-slate-500 block text-[9px] uppercase tracking-wider">Tahmini Hazırlanma</span>
+                  <span className="font-extrabold text-indigo-700 flex items-center gap-1 justify-end">
+                    ⏱️ {est.text}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2 border-t border-dashed border-slate-200">
+            <span className="text-sm font-bold text-slate-700">Genel Toplam</span>
+            <span className="text-2xl font-black text-slate-900">₺{grandTotal.toLocaleString('tr-TR')}</span>
+          </div>
         </div>
       </div>
 
@@ -309,6 +585,50 @@ export default function Cart({
               onChange={(e) => setCustomerContact(e.target.value)}
               placeholder="Örn: 0530 000 0000"
               className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition-all duration-200"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                İl / Şehir *
+              </label>
+              <input
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Örn: Ankara"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition-all duration-200"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                İlçe *
+              </label>
+              <input
+                type="text"
+                required
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                placeholder="Örn: Çankaya"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Açık Adres *
+            </label>
+            <textarea
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Mahalle, cadde, sokak, bina no, daire no..."
+              rows={2}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-800 transition-all duration-200 resize-none"
             />
           </div>
 
