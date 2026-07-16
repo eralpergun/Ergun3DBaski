@@ -29,6 +29,7 @@ import OrderTracker from './components/OrderTracker';
 import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
 import SupportChatWidget from './components/SupportChatWidget';
+import PhotoGallery from './components/PhotoGallery';
 import { hashPasscodeSync } from './utils/hash';
 import { Product, OrderItem, BankDetails, UserProfile } from './types';
 
@@ -510,6 +511,9 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                {/* High Quality 3D Print Photo Gallery Showcase */}
+                <PhotoGallery onSelectCustomPrint={() => setSelectedCategory('Özel Sipariş')} />
 
                 {/* Bottom row: Contact & Info */}
                 <div className="grid md:grid-cols-12 gap-8 pt-6">

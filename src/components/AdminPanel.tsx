@@ -27,12 +27,13 @@ import {
   Tag,
   Bell,
   AlertTriangle,
-  ClipboardList
+  ClipboardList,
+  Printer
 } from 'lucide-react';
-import { Product, Order, BankDetails, UserProfile, OrderStatus, SupportChat, SupportMessage, InventoryItem } from '../types';
+import { Product, Order, BankDetails, UserProfile, OrderStatus, SupportChat, SupportMessage, InventoryItem, GalleryItem } from '../types';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'custom_settings' | 'users' | 'chats' | 'coupons' | 'inventory'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'custom_settings' | 'users' | 'chats' | 'coupons' | 'inventory' | 'gallery'>('orders');
 
   // Firebase states
   const [orders, setOrders] = useState<Order[]>([]);
@@ -79,6 +80,20 @@ export default function AdminPanel() {
   const [newProdImgUrl, setNewProdImgUrl] = useState('');
   const [newProdStlName, setNewProdStlName] = useState('');
 
+  // Add/Edit Gallery Item states
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [galleryTitle, setGalleryTitle] = useState('');
+  const [galleryCategory, setGalleryCategory] = useState('Fidgets');
+  const [galleryDesc, setGalleryDesc] = useState('');
+  const [galleryImage, setGalleryImage] = useState('');
+  const [galleryLayerHeight, setGalleryLayerHeight] = useState('0.16mm (Hassas)');
+  const [galleryInfill, setGalleryInfill] = useState('%15 Gyroid');
+  const [galleryFilament, setGalleryFilament] = useState('Bambu Lab PLA Basic');
+  const [galleryDuration, setGalleryDuration] = useState('3 Saat');
+  const [galleryPrinter, setGalleryPrinter] = useState('Bambu Lab X1-Carbon');
+  const [galleryQualityBadge, setGalleryQualityBadge] = useState('Hassas Katman Kalitesi');
+
   // Add User Form state
   const [newUserEmailOrPhone, setNewUserEmailOrPhone] = useState('');
   const [newUserFullName, setNewUserFullName] = useState('');
@@ -110,6 +125,11 @@ export default function AdminPanel() {
   // Fast edit stock states
   const [editingInventoryId, setEditingInventoryId] = useState<string | null>(null);
   const [editingInventoryQty, setEditingInventoryQty] = useState<number>(0);
+
+  // Collapsible text states
+  const [expandedProdIds, setExpandedProdIds] = useState<Record<string, boolean>>({});
+  const [expandedInvIds, setExpandedInvIds] = useState<Record<string, boolean>>({});
+  const [expandedOrderNotes, setExpandedOrderNotes] = useState<Record<string, boolean>>({});
 
   // Load Realtime Database
   useEffect(() => {
@@ -222,6 +242,16 @@ export default function AdminPanel() {
       }
     });
 
+    const galleryRef = ref(database, 'gallery');
+    const unsubscribeGallery = onValue(galleryRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setGallery(Object.values(data) as GalleryItem[]);
+      } else {
+        setGallery([]);
+      }
+    });
+
     setLoading(false);
     return () => {
       unsubscribeOrders();
@@ -234,6 +264,7 @@ export default function AdminPanel() {
       unsubscribeChats();
       unsubscribeCoupons();
       unsubscribeInventory();
+      unsubscribeGallery();
     };
   }, []);
 
@@ -285,6 +316,142 @@ export default function AdminPanel() {
     } catch (err) {
       console.error(err);
       alert('Ürün eklenirken hata oluştu.');
+    }
+  };
+
+  // Handle adding gallery item
+  const handleAddGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryTitle || !galleryImage) {
+      alert('Lütfen geçerli bir başlık ve görsel URL\'i girin.');
+      return;
+    }
+
+    try {
+      const gRef = ref(database, 'gallery');
+      const newGRef = push(gRef);
+      const generatedId = newGRef.key || Math.random().toString(36).substring(2, 9).toUpperCase();
+
+      const item: GalleryItem = {
+        id: generatedId,
+        title: galleryTitle,
+        category: galleryCategory,
+        description: galleryDesc,
+        image: galleryImage,
+        layerHeight: galleryLayerHeight,
+        infill: galleryInfill,
+        filament: galleryFilament,
+        duration: galleryDuration,
+        printer: galleryPrinter,
+        qualityBadge: galleryQualityBadge
+      };
+
+      await set(newGRef, item);
+      alert('Geçmiş baskı başarıyla eklendi!');
+      
+      // Reset form
+      setGalleryTitle('');
+      setGalleryDesc('');
+      setGalleryImage('');
+      setGalleryLayerHeight('0.16mm (Hassas)');
+      setGalleryInfill('%15 Gyroid');
+      setGalleryFilament('Bambu Lab PLA Basic');
+      setGalleryDuration('3 Saat');
+      setGalleryPrinter('Bambu Lab X1-Carbon');
+      setGalleryQualityBadge('Hassas Katman Kalitesi');
+    } catch (err) {
+      console.error(err);
+      alert('Geçmiş baskı eklenirken hata oluştu.');
+    }
+  };
+
+  // Handle deleting gallery item
+  const handleDeleteGalleryItem = async (id: string) => {
+    if (!window.confirm('Bu geçmiş baskıyı silmek istediğinize emin misiniz?')) {
+      return;
+    }
+    try {
+      const itemRef = ref(database, `gallery/${id}`);
+      await remove(itemRef);
+      alert('Geçmiş baskı silindi.');
+    } catch (err) {
+      console.error(err);
+      alert('Silme işlemi başarısız.');
+    }
+  };
+
+  // Handle updating gallery item
+  const handleUpdateGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGalleryItem) return;
+    if (!galleryTitle || !galleryImage) {
+      alert('Lütfen başlık ve görsel URL\'i girin.');
+      return;
+    }
+
+    try {
+      const itemRef = ref(database, `gallery/${editingGalleryItem.id}`);
+      const updatedItem: GalleryItem = {
+        id: editingGalleryItem.id,
+        title: galleryTitle,
+        category: galleryCategory,
+        description: galleryDesc,
+        image: galleryImage,
+        layerHeight: galleryLayerHeight,
+        infill: galleryInfill,
+        filament: galleryFilament,
+        duration: galleryDuration,
+        printer: galleryPrinter,
+        qualityBadge: galleryQualityBadge
+      };
+
+      await set(itemRef, updatedItem);
+      alert('Geçmiş baskı güncellendi!');
+      setEditingGalleryItem(null);
+      
+      // Reset form
+      setGalleryTitle('');
+      setGalleryDesc('');
+      setGalleryImage('');
+      setGalleryLayerHeight('0.16mm (Hassas)');
+      setGalleryInfill('%15 Gyroid');
+      setGalleryFilament('Bambu Lab PLA Basic');
+      setGalleryDuration('3 Saat');
+      setGalleryPrinter('Bambu Lab X1-Carbon');
+      setGalleryQualityBadge('Hassas Katman Kalitesi');
+    } catch (err) {
+      console.error(err);
+      alert('Güncelleme sırasında hata oluştu.');
+    }
+  };
+
+  // Start editing gallery item
+  const startEditingGalleryItem = (item: GalleryItem) => {
+    setEditingGalleryItem(item);
+    setGalleryTitle(item.title);
+    setGalleryCategory(item.category);
+    setGalleryDesc(item.description);
+    setGalleryImage(item.image);
+    setGalleryLayerHeight(item.layerHeight);
+    setGalleryInfill(item.infill);
+    setGalleryFilament(item.filament);
+    setGalleryDuration(item.duration);
+    setGalleryPrinter(item.printer);
+    setGalleryQualityBadge(item.qualityBadge);
+  };
+
+  // Clear all gallery items
+  const handleClearAllGalleryItems = async () => {
+    if (!window.confirm('TÜM geçmiş baskıları silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) {
+      return;
+    }
+    try {
+      const galleryRef = ref(database, 'gallery');
+      await set(galleryRef, null);
+      alert('Tüm geçmiş baskılar silindi.');
+    } catch (err) {
+      console.error(err);
+      alert('Sıfırlama işlemi başarısız.');
     }
   };
 
@@ -868,6 +1035,16 @@ export default function AdminPanel() {
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'gallery' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+            }`}
+          >
+            <Printer className="h-4 w-4" />
+            Geçmiş Baskılar ({gallery.length})
+          </button>
         </div>
 
         <div className="p-6 md:p-8">
@@ -1059,7 +1236,19 @@ export default function AdminPanel() {
                         </div>
                         {order.notes && (
                           <div className="text-xs max-w-xs text-slate-500 italic">
-                            💬 <strong>Not:</strong> "{order.notes}"
+                            💬 <strong>Not:</strong>{" "}
+                            <span className={expandedOrderNotes[order.id] ? '' : 'line-clamp-2 block'}>
+                              "{order.notes}"
+                            </span>
+                            {order.notes.length > 50 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedOrderNotes(prev => ({ ...prev, [order.id]: !prev[order.id] }))}
+                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-500 cursor-pointer block mt-1 animate-fade-in"
+                              >
+                                {expandedOrderNotes[order.id] ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+                              </button>
+                            )}
                           </div>
                         )}
                         <div className="text-right">
@@ -1427,7 +1616,18 @@ export default function AdminPanel() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">{prod.description}</p>
+                            <p className={`text-[10px] text-slate-400 mt-0.5 ${expandedProdIds[prod.id] ? '' : 'line-clamp-1'}`}>
+                              {prod.description || 'Açıklama bulunmuyor.'}
+                            </p>
+                            {prod.description && prod.description.length > 50 && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedProdIds(prev => ({ ...prev, [prod.id]: !prev[prod.id] }))}
+                                className="text-[9px] font-bold text-indigo-600 hover:text-indigo-500 cursor-pointer block mt-0.5 animate-fade-in"
+                              >
+                                {expandedProdIds[prod.id] ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+                              </button>
+                            )}
                             {prod.stlFileName && (
                               <p className="text-[9px] text-slate-500 font-mono mt-0.5 truncate">📄 {prod.stlFileName}</p>
                             )}
@@ -2391,9 +2591,20 @@ export default function AdminPanel() {
                                   {item.name} {item.color ? `(${item.color})` : ''}
                                 </h5>
                                 {item.notes && (
-                                  <p className="text-[10px] text-slate-400 mt-1 italic">
-                                    📝 {item.notes}
-                                  </p>
+                                  <div>
+                                    <p className={`text-[10px] text-slate-400 mt-1 italic ${expandedInvIds[item.id] ? '' : 'line-clamp-1'}`}>
+                                      📝 {item.notes}
+                                    </p>
+                                    {item.notes.length > 30 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedInvIds(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                        className="text-[9px] font-bold text-indigo-600 hover:text-indigo-500 cursor-pointer block mt-0.5 animate-fade-in"
+                                      >
+                                        {expandedInvIds[item.id] ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
 
@@ -2493,6 +2704,272 @@ export default function AdminPanel() {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'gallery' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800">Geçmiş Baskılar Galerisi ({gallery.length})</h3>
+                  <p className="text-xs text-slate-500">Ana sayfadaki fotoğraf galerisini buradan dinamik olarak yönetebilir, yeni modeller ekleyebilirsiniz.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearAllGalleryItems}
+                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Şimdilik Hepsini Sil (Sıfırla)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Sol Taraf: Ekle / Düzenle Formu */}
+                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-6 h-fit space-y-4">
+                  <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <Plus className="h-4.5 w-4.5 text-indigo-600" />
+                    {editingGalleryItem ? 'Geçmiş Baskıyı Düzenle' : 'Yeni Geçmiş Baskı Ekle'}
+                  </h4>
+
+                  <form onSubmit={editingGalleryItem ? handleUpdateGalleryItem : handleAddGalleryItem} className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Baskı Başlığı *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Örn: Katlanabilir Ejderha"
+                        value={galleryTitle}
+                        onChange={(e) => setGalleryTitle(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Kategori *
+                      </label>
+                      <select
+                        value={galleryCategory}
+                        onChange={(e) => setGalleryCategory(e.target.value)}
+                        className="w-full px-2 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-bold"
+                      >
+                        <option value="Fidgets">Fidgets</option>
+                        <option value="Dekorasyon & Sanat">Dekorasyon & Sanat</option>
+                        <option value="Kullanışlı Araçlar">Kullanışlı Araçlar</option>
+                        <option value="Hediyelik & Aksesuar">Hediyelik & Aksesuar</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Görsel URL *
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/photo-..."
+                        value={galleryImage}
+                        onChange={(e) => setGalleryImage(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all"
+                        required
+                      />
+                      <p className="text-[9px] text-slate-450 mt-1">İnternette barındırılan doğrudan resim linki.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Açıklama / Model Detayı
+                      </label>
+                      <textarea
+                        placeholder="Örn: Mafsallı yapısı sayesinde tamamen hareketlidir."
+                        value={galleryDesc}
+                        onChange={(e) => setGalleryDesc(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all h-20 resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Katman Yüksekliği
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: 0.16mm (Hassas)"
+                          value={galleryLayerHeight}
+                          onChange={(e) => setGalleryLayerHeight(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Doluluk (Infill)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: %15 Gyroid"
+                          value={galleryInfill}
+                          onChange={(e) => setGalleryInfill(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Kullanılan Filament
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: PLA Basic"
+                          value={galleryFilament}
+                          onChange={(e) => setGalleryFilament(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Baskı Süresi
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: 3 Saat"
+                          value={galleryDuration}
+                          onChange={(e) => setGalleryDuration(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Yazıcı Modeli
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: X1-Carbon"
+                          value={galleryPrinter}
+                          onChange={(e) => setGalleryPrinter(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Kalite Rozeti
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Örn: Hassas Katman Kalitesi"
+                          value={galleryQualityBadge}
+                          onChange={(e) => setGalleryQualityBadge(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl text-xs outline-none text-slate-800 transition-all font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      {editingGalleryItem && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingGalleryItem(null);
+                            setGalleryTitle('');
+                            setGalleryDesc('');
+                            setGalleryImage('');
+                          }}
+                          className="w-1/3 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                        >
+                          İptal
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className={`py-3 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          editingGalleryItem ? 'w-2/3 bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'w-full bg-slate-900 hover:bg-slate-850'
+                        }`}
+                      >
+                        {editingGalleryItem ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        {editingGalleryItem ? 'Güncelle' : 'Geçmiş Baskı Ekle'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Sağ Taraf: Mevcut Galeriyi Listele */}
+                <div className="xl:col-span-2 space-y-4">
+                  <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <Printer className="h-4.5 w-4.5 text-slate-800" />
+                    Mevcut Geçmiş Baskılar ({gallery.length})
+                  </h4>
+
+                  {gallery.length === 0 ? (
+                    <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/20">
+                      <Printer className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 text-sm font-medium">Kayıtlı geçmiş baskı bulunmuyor.</p>
+                      <p className="text-xs text-slate-400 mt-1">Sol taraftaki formu kullanarak yeni bir model ekleyebilirsiniz.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {gallery.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col"
+                        >
+                          <div className="relative aspect-video bg-slate-50 overflow-hidden">
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              referrerPolicy="no-referrer"
+                              className="object-cover w-full h-full"
+                            />
+                            <span className="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-extrabold px-2 py-0.5 rounded-lg border border-slate-800">
+                              {item.category}
+                            </span>
+                          </div>
+
+                          <div className="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h5 className="font-extrabold text-slate-800 text-xs leading-tight">{item.title}</h5>
+                              <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{item.description}</p>
+                              
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 mt-3 pt-3 border-t border-slate-50 text-[10px] text-slate-500 font-medium">
+                                <span className="truncate">🎯 {item.layerHeight}</span>
+                                <span className="truncate">🌀 {item.infill}</span>
+                                <span className="truncate">🧵 {item.filament}</span>
+                                <span className="truncate">⏱️ {item.duration}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100/70">
+                              <button
+                                onClick={() => startEditingGalleryItem(item)}
+                                className="flex-1 py-2 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 font-bold text-xs rounded-xl border border-slate-100 hover:border-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                Düzenle
+                              </button>
+                              <button
+                                onClick={() => handleDeleteGalleryItem(item.id)}
+                                className="px-3.5 py-2 hover:bg-rose-50 text-slate-350 hover:text-rose-500 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-100 animate-fade-in"
+                                title="Sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

@@ -1,10 +1,139 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown, User } from 'lucide-react';
+import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown, User, Check, ClipboardList, CreditCard, Printer, Sparkles, Truck, XCircle } from 'lucide-react';
+import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { database } from '../lib/firebase';
 import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
 import { hashPasscodeSync } from '../utils/hash';
 import { Order, OrderStatus } from '../types';
+
+const getOrderProgressInfo = (status: OrderStatus, paymentStatus?: string) => {
+  const isPaid = paymentStatus === 'Onaylandı';
+  
+  if (status === 'İptal Edildi') {
+    return { activeIndex: -1, isCancelled: true };
+  }
+
+  let activeIndex = 0;
+  if (status === 'Sipariş Alındı') {
+    activeIndex = isPaid ? 2 : 0;
+  } else if (status === 'Ödeme Bekleniyor') {
+    activeIndex = isPaid ? 2 : 1;
+  } else if (status === 'Baskıda') {
+    activeIndex = 2;
+  } else if (status === 'Hazır') {
+    activeIndex = 3;
+  } else if (status === 'Kargolandı' || status === 'Kapatıldı') {
+    activeIndex = 4;
+  }
+
+  return { activeIndex, isCancelled: false };
+};
+
+const OrderProgressBar = ({ status, paymentStatus }: { status: OrderStatus; paymentStatus?: string }) => {
+  const { activeIndex, isCancelled } = getOrderProgressInfo(status, paymentStatus);
+
+  const steps = [
+    { label: 'Alındı', icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-500' },
+    { label: 'Ödeme', icon: CreditCard, color: 'text-amber-500', bg: 'bg-amber-500' },
+    { label: 'Baskıda', icon: Printer, color: 'text-indigo-500', bg: 'bg-indigo-500' },
+    { label: 'Hazır', icon: Sparkles, color: 'text-emerald-500', bg: 'bg-emerald-500' },
+    { label: 'Kargoda', icon: Truck, color: 'text-teal-500', bg: 'bg-teal-500' },
+  ];
+
+  if (isCancelled) {
+    return (
+      <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl flex items-center gap-3 animate-fade-in">
+        <span className="p-2 bg-rose-100 text-rose-600 rounded-xl">
+          <XCircle className="h-5 w-5" />
+        </span>
+        <div>
+          <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider block">Sipariş Durumu</span>
+          <span className="text-[11px] font-bold text-rose-600">Bu sipariş iptal edilmiştir.</span>
+        </div>
+      </div>
+    );
+  }
+
+  const progressPercent = (activeIndex / (steps.length - 1)) * 100;
+
+  return (
+    <div className="w-full py-4 px-1 select-none">
+      <div className="relative flex items-center justify-between w-full">
+        {/* Background line */}
+        <div className="absolute left-1 right-1 top-1/2 -translate-y-1/2 h-1 bg-slate-100 rounded-full z-0" />
+        
+        {/* Animated Fill Line */}
+        <motion.div 
+          className="absolute left-1 top-1/2 -translate-y-1/2 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full z-0 origin-left"
+          initial={{ width: 0 }}
+          animate={{ width: `${progressPercent}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+        />
+
+        {/* Step bubbles */}
+        {steps.map((step, idx) => {
+          const isCompleted = idx < activeIndex;
+          const isActive = idx === activeIndex;
+          const StepIcon = step.icon;
+
+          return (
+            <div key={idx} className="relative z-10 flex flex-col items-center">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ 
+                  scale: isActive ? 1.15 : 1, 
+                  opacity: 1,
+                  backgroundColor: isCompleted 
+                    ? '#10b981' // emerald-500 bg for completed
+                    : isActive 
+                      ? '#4f46e5' // indigo-600 bg for active
+                      : '#ffffff',
+                  borderColor: isCompleted 
+                    ? '#10b981' 
+                    : isActive 
+                      ? '#4f46e5' 
+                      : '#e2e8f0', 
+                }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center shadow-xs cursor-help relative group`}
+              >
+                {isActive && (
+                  <motion.span 
+                    className="absolute -inset-1 rounded-full bg-indigo-500/25 animate-ping z-[-1]"
+                    layoutId={`ping-${idx}`}
+                  />
+                )}
+
+                {isCompleted ? (
+                  <Check className="h-4 w-4 text-white stroke-[3]" />
+                ) : (
+                  <StepIcon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                )}
+
+                {/* Tooltip on hover */}
+                <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap shadow-md">
+                  {step.label}
+                </div>
+              </motion.div>
+
+              {/* Label below */}
+              <span className={`text-[10px] font-bold mt-2 tracking-tight ${
+                isActive 
+                  ? 'text-indigo-600 font-extrabold' 
+                  : isCompleted 
+                    ? 'text-emerald-600' 
+                    : 'text-slate-400 font-semibold'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 interface OrderTrackerProps {
   onUserLogin: (user: { emailOrPhone: string; role: string; id: string }) => void;
@@ -177,6 +306,10 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
   // User orders state
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Collapsible notes states
+  const [expandedOrderNotes, setExpandedOrderNotes] = useState<Record<string, boolean>>({});
+  const [expandedSearchOrderNote, setExpandedSearchOrderNote] = useState(false);
 
   // Search single order
   const handleSearchOrder = async (e: React.FormEvent) => {
@@ -884,6 +1017,11 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                 </span>
               </div>
 
+              {/* Dynamic Animated Progress Bar */}
+              <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
+                <OrderProgressBar status={searchedOrder.orderStatus} paymentStatus={searchedOrder.paymentStatus} />
+              </div>
+
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Sipariş İçeriği</span>
                 {searchedOrder.items.map((item, idx) => (
@@ -955,6 +1093,24 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">Teslimat Adresi</span>
                   <p className="text-slate-800 font-semibold text-[11px]">{searchedOrder.city} / {searchedOrder.district}</p>
                   <p className="text-slate-500 text-[10px] leading-relaxed break-words">{searchedOrder.address}</p>
+                </div>
+              )}
+
+              {searchedOrder.notes && (
+                <div className="pt-3 border-t border-slate-200/60 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">Sipariş Notu</span>
+                  <p className={`text-slate-600 italic text-[11px] mt-0.5 leading-relaxed bg-slate-50 p-2 rounded-xl border border-slate-100 ${expandedSearchOrderNote ? '' : 'line-clamp-2'}`}>
+                    "{searchedOrder.notes}"
+                  </p>
+                  {searchedOrder.notes.length > 50 && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSearchOrderNote(!expandedSearchOrderNote)}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-500 mt-1 cursor-pointer block"
+                    >
+                      {expandedSearchOrderNote ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1359,6 +1515,11 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                           </div>
                         </div>
 
+                        {/* Dynamic Animated Progress Bar */}
+                        <div className="bg-white border border-slate-100 p-3.5 rounded-2xl shadow-xs mb-3">
+                          <OrderProgressBar status={order.orderStatus} paymentStatus={order.paymentStatus} />
+                        </div>
+
                         {/* Order Items */}
                         <div className="space-y-2 mb-3">
                           {order.items.map((item, idx) => (
@@ -1407,6 +1568,23 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                               <span className="font-bold text-slate-400 text-[9px] uppercase tracking-wider block">Teslimat Adresi</span>
                               <span className="font-semibold text-slate-800">{order.city} / {order.district}</span>
                               <span className="block text-[10px] text-slate-500 mt-0.5 leading-relaxed break-words">{order.address}</span>
+                            </div>
+                          )}
+                          {order.notes && (
+                            <div className="pt-2 border-t border-slate-100 mt-1">
+                              <span className="font-bold text-slate-400 text-[9px] uppercase tracking-wider block">Sipariş Notu</span>
+                              <p className={`text-[10px] text-slate-500 mt-0.5 leading-relaxed italic ${expandedOrderNotes[order.id] ? '' : 'line-clamp-2'}`}>
+                                "{order.notes}"
+                              </p>
+                              {order.notes.length > 50 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedOrderNotes(prev => ({ ...prev, [order.id]: !prev[order.id] }))}
+                                  className="text-[9px] font-bold text-indigo-600 hover:text-indigo-500 mt-0.5 cursor-pointer block"
+                                >
+                                  {expandedOrderNotes[order.id] ? 'Daha Az Gör ▲' : 'Devamını Gör ▼'}
+                                </button>
+                              )}
                             </div>
                           )}
                           {order.shippingFee !== undefined && (

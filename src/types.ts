@@ -101,3 +101,18 @@ export interface InventoryItem {
   updatedAt: number;
 }
 
+export interface GalleryItem {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  image: string;
+  layerHeight: string;
+  infill: string;
+  filament: string;
+  duration: string;
+  printer: string;
+  qualityBadge: string;
+}
+
+
