@@ -50,6 +50,8 @@ export interface Order {
   shippingFee?: number;
   createdAt: number;
   notes?: string;
+  pointsUsed?: number;
+  pointsEarned?: number;
 }
 
 export interface BankDetails {
@@ -64,6 +66,9 @@ export interface UserProfile {
   emailOrPhone: string;
   role: "admin" | "customer";
   passcodeHash: string; // Hashed password
+  fullName?: string;
+  points?: number;
+  totalSpent?: number;
   createdAt: number;
 }
 

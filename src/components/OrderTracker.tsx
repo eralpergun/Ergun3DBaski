@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown, User, Check, ClipboardList, CreditCard, Printer, Sparkles, Truck, XCircle } from 'lucide-react';
+import { Search, Loader2, Package, Clock, ShieldAlert, BadgeCheck, FileText, Smartphone, KeyRound, UserPlus, Trash2, Calendar, FileDown, User, Check, ClipboardList, CreditCard, Printer, Sparkles, Truck, XCircle, Coins, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { database } from '../lib/firebase';
 import { ref, get, child, onValue, query, orderByChild, equalTo, remove, update } from 'firebase/database';
 import { hashPasscodeSync } from '../utils/hash';
 import { Order, OrderStatus } from '../types';
+import { calculateItemSubtotal } from '../utils/discount';
 
 const getOrderProgressInfo = (status: OrderStatus, paymentStatus?: string) => {
   const isPaid = paymentStatus === 'Onaylandı';
@@ -220,6 +221,44 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
   const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   // Profile settings state
+  const [profileData, setProfileData] = useState<{ points?: number; totalSpent?: number } | null>(null);
+  const [personalCoupons, setPersonalCoupons] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setProfileData(null);
+      setPersonalCoupons([]);
+      return;
+    }
+
+    const userRef = ref(database, `users/${currentUser.id}`);
+    const unsubUser = onValue(userRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setProfileData(snapshot.val());
+      } else {
+        setProfileData(null);
+      }
+    });
+
+    const couponsRef = ref(database, 'coupons');
+    const unsubCoupons = onValue(couponsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const personal = Object.entries(data)
+          .map(([key, val]: [string, any]) => ({ id: key, ...val }))
+          .filter(c => c.ownerId === currentUser.id && c.active && ((c.usageCount || 0) < (c.maxUsage || 1)));
+        setPersonalCoupons(personal);
+      } else {
+        setPersonalCoupons([]);
+      }
+    });
+
+    return () => {
+      unsubUser();
+      unsubCoupons();
+    };
+  }, [currentUser]);
+
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [profileFullName, setProfileFullName] = useState('');
   const [profileEmailOrPhone, setProfileEmailOrPhone] = useState('');
@@ -732,7 +771,7 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
       doc.text(safeText(itemType), 95, y + 6);
       doc.text(safeText(itemDetail), 120, y + 6);
       doc.text(item.quantity.toString(), 162, y + 6);
-      doc.text(`TL ${item.price * item.quantity}`, 182, y + 6);
+      doc.text(`TL ${calculateItemSubtotal(item)}`, 182, y + 6);
 
       y += 10;
     });
@@ -1295,6 +1334,119 @@ export default function OrderTracker({ onUserLogin, currentUser, onLogout }: Ord
                   </button>
                 </div>
               </div>
+
+              {/* Loyalty & Points Dashboard */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                {/* Points Card */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/30 border border-amber-200/60 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="p-2.5 bg-amber-500/10 text-amber-600 rounded-xl">
+                        <Coins className="h-5 w-5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans">
+                        %2 Hediye Puan Sistemi
+                      </span>
+                    </div>
+                    <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mevcut Hediye Puanınız</span>
+                    <h4 className="text-3xl font-black text-slate-800 mt-1">
+                      ₺{(profileData?.points || 0).toLocaleString('tr-TR')} Puan
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-3 leading-relaxed font-semibold">
+                    💡 Kazandığınız her 1 puan <strong>1 TL</strong> değerindedir. Ödeme aşamasında puanlarınızı kullanarak anında indirim alabilirsiniz.
+                  </p>
+                </div>
+
+                {/* Spend Milestone / 5000 TL Card */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/30 border border-indigo-200/60 shadow-sm flex flex-col justify-between">
+                  {(() => {
+                    const totalSpent = profileData?.totalSpent || 0;
+                    const prevMilestone = Math.floor(totalSpent / 5000) * 5000;
+                    const segmentProgress = totalSpent - prevMilestone;
+                    const progressPercent = Math.min(100, (segmentProgress / 5000) * 100);
+                    const remainingToCoupon = Math.max(0, 5000 - segmentProgress);
+
+                    return (
+                      <>
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="p-2.5 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                              <Gift className="h-5 w-5" />
+                            </div>
+                            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider font-sans">
+                              ₺500 Hediye Kampanyası
+                            </span>
+                          </div>
+                          <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Toplam Harcamanız</span>
+                          <h4 className="text-3xl font-black text-slate-800 mt-1">
+                            ₺{totalSpent.toLocaleString('tr-TR')}
+                          </h4>
+
+                          {/* Progress bar */}
+                          <div className="mt-4">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1 font-sans">
+                              <span>Sıradaki Kupon İlerlemesi ({progressPercent.toFixed(0)}%)</span>
+                              <span>{segmentProgress.toLocaleString('tr-TR')} / 5000 ₺</span>
+                            </div>
+                            <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 mt-3 leading-relaxed font-semibold">
+                          🎁 Her 5000 TL harcamanızda hesabınıza otomatik olarak <strong className="text-rose-500">%100 kullanımlık 500 TL kupon</strong> eklenir! Sıradaki kupon için gereken harcama: <strong>₺{remainingToCoupon.toLocaleString('tr-TR')}</strong>
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Earned Coupons Section */}
+              {personalCoupons.length > 0 && (
+                <div className="p-5 rounded-2xl bg-rose-50/20 border border-rose-200/60 animate-fade-in space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                    🎟️ Kazandığınız 500 TL'lik Hediye Kuponlarınız ({personalCoupons.length})
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {personalCoupons.map((coupon) => (
+                      <div
+                        key={coupon.id}
+                        className="p-3.5 bg-white border border-rose-100 rounded-xl shadow-sm flex flex-col justify-between"
+                      >
+                        <div>
+                          <span className="text-xs font-black text-rose-600 font-mono tracking-wider bg-rose-50 px-2 py-1 rounded border border-rose-100">
+                            {coupon.code}
+                          </span>
+                          <span className="text-[10px] block text-slate-400 mt-2 font-semibold">Tutar: ₺{coupon.value} İndirim</span>
+                          <span className="text-[10px] block text-slate-500 font-bold mt-1">
+                            {coupon.description || '500 TL Alışveriş Ödülü'}
+                          </span>
+                        </div>
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[9px] text-emerald-600 font-black flex items-center gap-1 font-sans">
+                            ● KULLANILABİLİR
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(coupon.code);
+                              alert('Kupon kodu kopyalandı! Sepet sayfasında uygulayabilirsiniz.');
+                            }}
+                            className="text-[10px] font-bold text-slate-500 hover:text-indigo-600 underline cursor-pointer"
+                          >
+                            Kopyala
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {showProfileSettings && (
                 <form onSubmit={handleUpdateProfile} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4 animate-fade-in">

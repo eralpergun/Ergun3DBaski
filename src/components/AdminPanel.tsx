@@ -31,6 +31,7 @@ import {
   Printer
 } from 'lucide-react';
 import { Product, Order, BankDetails, UserProfile, OrderStatus, SupportChat, SupportMessage, InventoryItem, GalleryItem } from '../types';
+import { getMultiColorDiscountPercentage } from '../utils/discount';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'custom_settings' | 'users' | 'chats' | 'coupons' | 'inventory' | 'gallery'>('orders');
@@ -1195,6 +1196,11 @@ export default function AdminPanel() {
                               <div className="text-right shrink-0">
                                 <span className="text-xs font-bold text-slate-700 block">x{item.quantity}</span>
                                 <span className="text-[10px] text-slate-400">₺{item.price}</span>
+                                {item.type === 'custom' && item.customPrint?.printType === 'multi' && getMultiColorDiscountPercentage(item.quantity) > 0 && (
+                                  <span className="block text-[8px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 mt-1 uppercase tracking-widest">
+                                    %{getMultiColorDiscountPercentage(item.quantity)} İnd.
+                                  </span>
+                                )}
                               </div>
                             </div>
                           ))}

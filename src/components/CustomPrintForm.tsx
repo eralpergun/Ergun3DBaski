@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Link2, Calculator, Plus, Check, Clock, Gauge, Zap, X, Scale, Sparkles, Layers } from 'lucide-react';
+import { Upload, Link2, Calculator, Plus, Check, Clock, Gauge, Zap, X, Scale, Sparkles, Layers, Gift } from 'lucide-react';
 import { OrderItem } from '../types';
 
 export const AVAILABLE_COLORS = [
@@ -326,6 +326,24 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
           </p>
         </div>
 
+        {/* Adet İndirimi Kampanyası Bilgilendirmesi */}
+        <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-start gap-3">
+          <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl shrink-0 mt-0.5">
+            <Gift className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-indigo-300 uppercase tracking-wider flex items-center gap-1.5">
+              🎁 Çoklu Sipariş İndirim Fırsatı!
+            </h4>
+            <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+              Özel çok renkli baskı siparişlerinizde, sepetinizdeki aynı modelin adedi arttıkça <strong className="text-rose-400 font-extrabold">%40'a varan otomatik indirim</strong> uygulanır! 
+              <span className="text-slate-400 block text-[11px] mt-1 font-semibold">
+                (2 adet: %10, 3 adet: %15, 4 adet: %20, 5 adet: %25, 6 adet: %30, 7 adet: %35, 8+ adet: %40 indirim)
+              </span>
+            </p>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Design Name */}
           <div>
@@ -648,9 +666,23 @@ export default function CustomPrintForm({ pricePerGram, pricePerGramMultiColor, 
             </div>
             
             {printType === 'multi' && (
-              <p className="text-[10px] text-amber-400/90 leading-relaxed bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
-                ⚠️ <strong>Çok Renkli Baskı:</strong> Filament renk değişimlerindeki temizleme (purge) ve geçiş süreleri nedeniyle üretim süresi tek renge kıyasla daha uzundur.
-              </p>
+              <div className="space-y-2">
+                <p className="text-[10px] text-amber-400/90 leading-relaxed bg-amber-500/5 p-2.5 rounded-lg border border-amber-500/10">
+                  ⚠️ <strong>Çok Renkli Baskı:</strong> Filament renk değişimlerindeki temizleme (purge) ve geçiş süreleri nedeniyle üretim süresi tek renge kıyasla daha uzundur.
+                </p>
+                <div className="text-[10px] text-rose-300 leading-relaxed bg-rose-500/5 p-2.5 rounded-xl border border-rose-500/10">
+                  🎁 <strong className="text-rose-400 font-extrabold">Çoklu Renkli Baskı Kampanyası:</strong> Sepetinizde aynı renkli baskı modelinden;
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1.5 font-bold text-[9px] text-slate-400">
+                    <span>• 2 Adet için: <strong className="text-rose-450">%10 İndirim</strong></span>
+                    <span>• 3 Adet için: <strong className="text-rose-450">%15 İndirim</strong></span>
+                    <span>• 4 Adet için: <strong className="text-rose-450">%20 İndirim</strong></span>
+                    <span>• 5 Adet için: <strong className="text-rose-450">%25 İndirim</strong></span>
+                    <span>• 6 Adet için: <strong className="text-rose-450">%30 İndirim</strong></span>
+                    <span>• 7 Adet için: <strong className="text-rose-450">%35 İndirim</strong></span>
+                    <span className="col-span-2">• 8 Adet ve üzeri için: <strong className="text-rose-450">%40 İndirim</strong></span>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
